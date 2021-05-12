@@ -200,7 +200,7 @@ int azc_send() {
     (void) IoTHubMessage_SetContentEncodingSystemProperty(message_handle, "utf-8");
 
     // Add custom properties to message
-    (void) IoTHubMessage_SetProperty(message_handle, "property_key", "property_value");
+    // (void) IoTHubMessage_SetProperty(message_handle, "property_key", "property_value");
 
     (void) printf("\r\nSending message %d to IoTHub\r\nMessage: %s\r\n", (int) (messagecount + 1),
                   telemetry_msg_buffer);

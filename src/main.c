@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
 
     for (int i=0; i<10; i++) {
         azc_send();
-        ThreadAPI_Sleep(5000);
+        ThreadAPI_Sleep(1000);
     }
 
     azc_reset();
