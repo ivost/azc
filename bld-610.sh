@@ -14,7 +14,7 @@ $CC azc.o certs.o -shared -o libazc.so \
    -l umqtt -l aziotsharedutil -l parson 
 
 $CC src/main.c \
-  -o azc \
+  -o azc610 \
   -I include -I src -I deps/umock_c/inc  \
   -L . \
   -L lib \

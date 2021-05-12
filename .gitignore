@@ -1,5 +1,7 @@
 *.so
 azc
+azc610
+azcX86
 
 # Prerequisites
 *.d
