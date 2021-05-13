@@ -6,36 +6,80 @@
 #include "iothub_device_client.h"
 #include "iothub_client_options.h"
 #include "iothub_message.h"
-#include "azure_c_shared_utility/threadapi.h"
+//#include "azure_c_shared_utility/threadapi.h"
 #include "azure_c_shared_utility/crt_abstractions.h"
-#include "azure_c_shared_utility/platform.h"
+//#include "azure_c_shared_utility/platform.h"
 #include "azure_c_shared_utility/shared_util_options.h"
 #include "azure_c_shared_utility/tickcounter.h"
-
 #include "iothubtransportmqtt.h"
-
 #include "parson.h"
-
 #include "certs.h"
 #include "azc.h"
 
+static IOTHUBMESSAGE_DISPOSITION_RESULT receive_msg_callback(IOTHUB_MESSAGE_HANDLE message, void *user_context);
+
+static int device_method_callback(const char *method_name, const unsigned char *payload, size_t size,
+                                  unsigned char **response, size_t *resp_size, void *userContextCallback);
+
+static void connection_status_callback(IOTHUB_CLIENT_CONNECTION_STATUS result,
+                                       IOTHUB_CLIENT_CONNECTION_STATUS_REASON reason, void *user_context);
+
+static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void *userContextCallback);
+
 static const char *connectionString = "HostName=iothub-insg-1.azure-devices.net;DeviceId=turbox1;SharedAccessKey=LJguyo+6VW/y6DHWxT5dcD+GRFLlyzwCTxh8qxPUDFE=";
 
-//static bool g_continueRunning = true;
-//static int g_interval = 10000;  // 10 sec send interval initially
 static size_t g_message_count_send_confirmations = 0;
 
 static IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol = MQTT_Protocol;
 static IOTHUB_MESSAGE_HANDLE message_handle;
 static IOTHUB_DEVICE_CLIENT_HANDLE device_handle;
 
-//static float telemetry_temperature;
-//static float telemetry_humidity;
-//static const char *telemetry_scale = "Celsius";
-//#define MAX_BUF 16000
-//static char msg_buffer[MAX_BUF];
-
 static int messagecount = 0;
+
+
+int azc_init() {
+    printf("azc_init");
+    (void) IoTHub_Init();
+
+    (void) printf("Creating IoTHub handle\r\n");
+    // Create the iothub handle here
+    device_handle = IoTHubDeviceClient_CreateFromConnectionString(connectionString, protocol);
+    if (device_handle == NULL) {
+        (void) printf("Failure creating IotHub device. Hint: Check your connection string.\r\n");
+        return 1;
+    }
+    // Setting message callback to get C2D messages
+    (void) IoTHubDeviceClient_SetMessageCallback(device_handle, receive_msg_callback, NULL);
+    // Setting method callback to handle a SetTelemetryInterval method to control
+    //   how often telemetry messages are sent from the simulated device.
+    (void) IoTHubDeviceClient_SetDeviceMethodCallback(device_handle, device_method_callback, NULL);
+    // Setting connection status callback to get indication of connection to iothub
+    (void) IoTHubDeviceClient_SetConnectionStatusCallback(device_handle, connection_status_callback, NULL);
+
+    // Set any option that are necessary.
+    // For available options please see the iothub_sdk_options.md documentation
+
+    // Setting Log Tracing.
+    // Log tracing is supported in MQTT and AMQP. Not HTTP.
+    bool traceOn = true;
+    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_LOG_TRACE, &traceOn);
+    // Setting the frequency of DoWork calls by the underlying process thread.
+    // The value ms_delay is a delay between DoWork calls, in milliseconds.
+    // ms_delay can only be between 1 and 100 milliseconds.
+    // Without the SetOption, the delay defaults to 1 ms.
+    tickcounter_ms_t ms_delay = 10;
+    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_DO_WORK_FREQUENCY_IN_MS, &ms_delay);
+    // Setting the Trusted Certificate. This is only necessary on systems without
+    // built in certificate stores.
+    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_TRUSTED_CERT, certificates);
+
+    //Setting the auto URL Encoder (recommended for MQTT). Please use this option unless
+    //you are URL Encoding inputs yourself.
+    //ONLY valid for use with MQTT
+    bool urlEncodeOn = true;
+    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_AUTO_URL_ENCODE_DECODE, &urlEncodeOn);
+    return 0;
+}
 
 static IOTHUBMESSAGE_DISPOSITION_RESULT receive_msg_callback(IOTHUB_MESSAGE_HANDLE message, void *user_context) {
     (void) user_context;
@@ -126,7 +170,6 @@ connection_status_callback(IOTHUB_CLIENT_CONNECTION_STATUS result, IOTHUB_CLIENT
                            void *user_context) {
     (void) reason;
     (void) user_context;
-    // This sample DOES NOT take into consideration network outages.
     if (result == IOTHUB_CLIENT_CONNECTION_AUTHENTICATED) {
         (void) printf("The device client is connected to iothub\r\n");
     } else {
@@ -143,93 +186,59 @@ static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void
                   MU_ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
 }
 
-int azc_init() {
-    printf("azc_init");
-    (void) IoTHub_Init();
-
-    (void) printf("Creating IoTHub handle\r\n");
-    // Create the iothub handle here
-    device_handle = IoTHubDeviceClient_CreateFromConnectionString(connectionString, protocol);
-    if (device_handle == NULL) {
-        (void) printf("Failure creating IotHub device. Hint: Check your connection string.\r\n");
-        return 1;
-    }
-    // Setting message callback to get C2D messages
-    (void) IoTHubDeviceClient_SetMessageCallback(device_handle, receive_msg_callback, NULL);
-    // Setting method callback to handle a SetTelemetryInterval method to control
-    //   how often telemetry messages are sent from the simulated device.
-    (void) IoTHubDeviceClient_SetDeviceMethodCallback(device_handle, device_method_callback, NULL);
-    // Setting connection status callback to get indication of connection to iothub
-    (void) IoTHubDeviceClient_SetConnectionStatusCallback(device_handle, connection_status_callback, NULL);
-
-    // Set any option that are necessary.
-    // For available options please see the iothub_sdk_options.md documentation
-
-    // Setting Log Tracing.
-    // Log tracing is supported in MQTT and AMQP. Not HTTP.
-    bool traceOn = true;
-    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_LOG_TRACE, &traceOn);
-    // Setting the frequency of DoWork calls by the underlying process thread.
-    // The value ms_delay is a delay between DoWork calls, in milliseconds.
-    // ms_delay can only be between 1 and 100 milliseconds.
-    // Without the SetOption, the delay defaults to 1 ms.
-    tickcounter_ms_t ms_delay = 10;
-    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_DO_WORK_FREQUENCY_IN_MS, &ms_delay);
-    // Setting the Trusted Certificate. This is only necessary on systems without
-    // built in certificate stores.
-    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_TRUSTED_CERT, certificates);
-
-    //Setting the auto URL Encoder (recommended for MQTT). Please use this option unless
-    //you are URL Encoding inputs yourself.
-    //ONLY valid for use with MQTT
-    bool urlEncodeOn = true;
-    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_AUTO_URL_ENCODE_DECODE, &urlEncodeOn);
-    return 0;
-}
-
-char * azc_serialize(size_t num_boxes, struct bbox * pboxes) {
-    JSON_Value *root_value = json_value_init_object();
-    JSON_Object *root_object = json_value_get_object(root_value);
+char * azc_serialize_result(struct objdet_result * res) {
+    JSON_Value *rootv = json_value_init_object();
+    JSON_Object *root = json_value_get_object(rootv);
+    json_object_set_number(root, "time", res->time);
+    json_object_set_number(root, "ctx", res->ctx_id);
+    json_object_set_number(root, "n", res->numbb);
 
     JSON_Value *arr = json_value_init_array();
-    json_object_set_value(root_object, "bbox", arr);
-    JSON_Array * obj_arr = json_value_get_array(arr);
+    json_object_set_value(root, "bb", arr);
+    JSON_Array * bbs_arr = json_value_get_array(arr);
 
-    struct bbox * pb = pboxes;
-    for (size_t idx = 0; idx < num_boxes; idx++) {
-        JSON_Value *val = json_value_init_object();
-        JSON_Object *obj = json_value_get_object(val);
-        json_object_set_number(obj, "x", pb->x);
-        json_object_set_number(obj, "y", pb->y);
-        json_object_set_number(obj, "conf", pb->confidence);
-        json_array_append_value(obj_arr, val);
+    struct bbox * pb = res->bb;
+    for (int idx = 0; idx < res->numbb; idx++) {
+        JSON_Value *arrb = json_value_init_array();
+        JSON_Array *arr = json_value_get_array(arrb);
+        json_array_append_number(arr, pb->x);
+        json_array_append_number(arr, pb->y);
+        json_array_append_number(arr, pb->width);
+        json_array_append_number(arr, pb->height);
+        json_array_append_number(arr, pb->cat);
+        json_array_append_number(arr, pb->conf);
+        json_array_append_value(bbs_arr, arrb);
         pb ++;
     }
-    char * p = json_serialize_to_string(root_value);
-    json_value_free(root_value);
+    char * p = json_serialize_to_string(rootv);
+    json_value_free(rootv);
     return p;
 }
-/*
-val = json_value_init_object();
-TEST(val != NULL);
 
-obj = json_value_get_object(val);
-TEST(obj != NULL);
+int azc_send_context(struct cam_context * ctx) {
+    int rc = 0;
 
-TEST(json_object_set_string(obj, "first", "John") == JSONSuccess);
-TEST(json_object_set_string(obj, "last", "Doe") == JSONSuccess);
-TEST(json_object_set_number(obj, "age", 25) == JSONSuccess);
-TEST(json_object_set_boolean(obj, "registered", 1) == JSONSuccess);
+    return rc;
+}
 
-TEST(json_object_set_value(obj, "interests", json_value_init_array()) == JSONSuccess);
-interests_arr = json_object_get_array(obj, "interests");
-TEST(interests_arr != NULL);
-TEST(json_array_append_string(interests_arr, "Writing") == JSONSuccess);
-*/
+int azc_send_result(struct objdet_result * res) {
+    int rc = 0;
+    printf("azc_send_result - ctx %d, %d boxes\n", res->ctx_id, res->numbb);
+    char * msg = azc_serialize_result(res);
+    printf("Sending message %d to IoTHub\nMessage: %s\n", (int) (messagecount + 1), msg);
+    message_handle = IoTHubMessage_CreateFromString(msg);
+    IoTHubMessage_SetContentTypeSystemProperty(message_handle, "application/json");
+    IoTHubMessage_SetContentEncodingSystemProperty(message_handle, "utf-8");
+    rc = IoTHubDeviceClient_SendEventAsync(device_handle, message_handle, send_confirm_callback, NULL);
+    // safe to destroy
+    json_free_serialized_string(msg);
+    IoTHubMessage_Destroy(message_handle);
+    messagecount = messagecount + 1;
+    return rc;
+}
 
-int azc_send(size_t num_boxes, struct bbox * boxes) {
-    printf("azc_send %zu boxes\n", num_boxes);
-
+// Add custom properties to message
+// (void) IoTHubMessage_SetProperty(message_handle, "property_key", "property_value");
 //    telemetry_temperature = 20.0f + ((float) rand() / RAND_MAX) * 15.0f;
 //    telemetry_humidity = 60.0f + ((float) rand() / RAND_MAX) * 20.0f;
 //
@@ -238,27 +247,10 @@ int azc_send(size_t num_boxes, struct bbox * boxes) {
 //
 //    message_handle = IoTHubMessage_CreateFromString(telemetry_msg_buffer);
 
-    // Set Message property
+// Set Message property
 //    (void) IoTHubMessage_SetMessageId(message_handle, "MSG_ID");
 //    (void) IoTHubMessage_SetCorrelationId(message_handle, "CORE_ID");
-    (void) IoTHubMessage_SetContentTypeSystemProperty(message_handle, "application%2fjson");
-    (void) IoTHubMessage_SetContentEncodingSystemProperty(message_handle, "utf-8");
-
-    // Add custom properties to message
-    // (void) IoTHubMessage_SetProperty(message_handle, "property_key", "property_value");
-    char * msg = azc_serialize(num_boxes, boxes);
-    (void) printf("\r\nSending message %d to IoTHub\r\nMessage: %s\r\n", (int) (messagecount + 1), msg);
-
-    IoTHubDeviceClient_SendEventAsync(device_handle, message_handle, send_confirm_callback, NULL);
-    // safe to destroy
-    IoTHubMessage_Destroy(message_handle);
-    messagecount = messagecount + 1;
-    json_free_serialized_string(msg);
-    // todo: free other objects?
-
-    //ThreadAPI_Sleep(g_interval);
-    return 0;
-}
+//ThreadAPI_Sleep(g_interval);
 
 int azc_reset() {
     printf("azc_reset");

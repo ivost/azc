@@ -11,22 +11,41 @@
 extern "C" {
 #endif
 
-// bounding box
-struct bbox {
-    uint64_t time;
-    uint64_t id;
-    uint64_t idx;       // class index
-    uint16_t x;
-    uint16_t y;
+
+// context
+struct cam_context {
+    uint32_t ctx_id;
+    uint16_t cam;
     uint16_t width;
     uint16_t height;
-    float confidence;
+    uint16_t model;
     float scale_x;
     float scale_y;
 };
 
+// bounding box
+struct bbox {
+    uint16_t x;
+    uint16_t y;
+    uint16_t width;
+    uint16_t height;
+    uint16_t conf;
+    uint16_t cat;       // class index
+};
+
+// object detection result
+struct objdet_result {
+    uint64_t time;
+    uint32_t ctx_id;
+    uint16_t numbb;
+    struct   bbox * bb;
+};
+
 int azc_init();
-int azc_send(size_t num_boxes, struct bbox * boxes);
+
+int azc_send_context(struct cam_context * ctx);
+int azc_send_result(struct objdet_result * res);
+
 int azc_reset();
 
 
