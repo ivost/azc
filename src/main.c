@@ -6,12 +6,27 @@
 
 int main(int argc, char *argv[]) {
     int rc;
+    struct cam_context ctx;
     struct objdet_result r;
     struct bbox * pbt;
+
     azc_init();
 
-    for (int i=0; i<5; i++) {
-        r.ctx_id = 100 + i*10;
+    ctx.ctx_id = 100;
+    ctx.cam = 2;
+    ctx.model = 3;
+    ctx.width = 640;
+    ctx.height = 480;
+    ctx.scale_x = 0.521;
+    ctx.scale_y = 0.4333;
+    strcpy(ctx.fields, "x,y,w,h,conf,cat");
+
+    rc = azc_send_context(&ctx);
+    (void) rc;
+
+    r.ctx_id = ctx.ctx_id;
+
+    for (int i=0; i<2; i++) {
         r.time = time(NULL);
         r.numbb = i+1;
         r.bb = pbt = calloc(r.numbb, sizeof(struct bbox));

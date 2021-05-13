@@ -11,6 +11,7 @@
 extern "C" {
 #endif
 
+#define MAX_FIELDS (100)
 
 // context
 struct cam_context {
@@ -19,8 +20,11 @@ struct cam_context {
     uint16_t width;
     uint16_t height;
     uint16_t model;
+    // scale is multiplied by 10000 and rounded to 4 digits precision
     float scale_x;
     float scale_y;
+    // bbox field list - e.g. "x,y,w,h,conf,cat"
+    char  fields[MAX_FIELDS];
 };
 
 // bounding box

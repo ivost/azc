@@ -15,6 +15,7 @@
 #include "parson.h"
 #include "certs.h"
 #include "azc.h"
+#include "math.h"
 
 static IOTHUBMESSAGE_DISPOSITION_RESULT receive_msg_callback(IOTHUB_MESSAGE_HANDLE message, void *user_context);
 
@@ -186,6 +187,10 @@ static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void
                   MU_ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
 }
 
+int32_t float_to_int(float f) {
+    return (int32_t) roundf(10000 * f);
+}
+
 char * azc_serialize_result(struct objdet_result * res) {
     JSON_Value *rootv = json_value_init_object();
     JSON_Object *root = json_value_get_object(rootv);
@@ -214,10 +219,46 @@ char * azc_serialize_result(struct objdet_result * res) {
     json_value_free(rootv);
     return p;
 }
+/*
+    uint32_t ctx_id;
+    uint16_t cam;
+    uint16_t width;
+    uint16_t height;
+    uint16_t model;
+    float scale_x;
+    float scale_y;
+    // bbox field list - e.g. "x,y,w,h,conf,cat"
+    char  fields[MAX_FIELDS];
+
+ */
+char * azc_serialize_context(struct cam_context * ctx) {
+    JSON_Value *rootv = json_value_init_object();
+    JSON_Object *root = json_value_get_object(rootv);
+    json_object_set_number(root, "cid", ctx->ctx_id);
+    json_object_set_number(root, "cam", ctx->cam);
+    json_object_set_number(root, "w", ctx->width);
+    json_object_set_number(root, "h", ctx->height);
+    json_object_set_number(root, "model", ctx->model);
+    json_object_set_number(root, "xf", float_to_int(ctx->scale_x));
+    json_object_set_number(root, "yf", float_to_int(ctx->scale_y));
+    json_object_set_string(root, "fields", ctx->fields);
+    char * p = json_serialize_to_string(rootv);
+    json_value_free(rootv);
+    return p;
+}
 
 int azc_send_context(struct cam_context * ctx) {
     int rc = 0;
-
+    printf("azc_send_context - ctx %d\n", ctx->ctx_id);
+    char * msg = azc_serialize_context(ctx);
+    printf("Sending context message %d to IoTHub\nMessage: %s\n", (int) (messagecount + 1), msg);
+    message_handle = IoTHubMessage_CreateFromString(msg);
+    IoTHubMessage_SetProperty(message_handle, "T", "C");
+    IoTHubMessage_SetContentTypeSystemProperty(message_handle, "application/json");
+    rc = IoTHubDeviceClient_SendEventAsync(device_handle, message_handle, send_confirm_callback, NULL);
+    // safe to destroy
+    json_free_serialized_string(msg);
+    IoTHubMessage_Destroy(message_handle);
     return rc;
 }
 
@@ -225,10 +266,11 @@ int azc_send_result(struct objdet_result * res) {
     int rc = 0;
     printf("azc_send_result - ctx %d, %d boxes\n", res->ctx_id, res->numbb);
     char * msg = azc_serialize_result(res);
-    printf("Sending message %d to IoTHub\nMessage: %s\n", (int) (messagecount + 1), msg);
+    printf("Sending result message %d to IoTHub\nMessage: %s\n", (int) (messagecount + 1), msg);
     message_handle = IoTHubMessage_CreateFromString(msg);
     IoTHubMessage_SetContentTypeSystemProperty(message_handle, "application/json");
-    IoTHubMessage_SetContentEncodingSystemProperty(message_handle, "utf-8");
+    // IoTHubMessage_SetContentEncodingSystemProperty(message_handle, "utf-8");
+    IoTHubMessage_SetProperty(message_handle, "T", "DR");
     rc = IoTHubDeviceClient_SendEventAsync(device_handle, message_handle, send_confirm_callback, NULL);
     // safe to destroy
     json_free_serialized_string(msg);
@@ -237,17 +279,7 @@ int azc_send_result(struct objdet_result * res) {
     return rc;
 }
 
-// Add custom properties to message
-// (void) IoTHubMessage_SetProperty(message_handle, "property_key", "property_value");
-//    telemetry_temperature = 20.0f + ((float) rand() / RAND_MAX) * 15.0f;
-//    telemetry_humidity = 60.0f + ((float) rand() / RAND_MAX) * 20.0f;
-//
-//    sprintf(telemetry_msg_buffer, "{\"temperature\":%.3f,\"humidity\":%.3f,\"scale\":\"%s\"}",
-//            telemetry_temperature, telemetry_humidity, telemetry_scale);
-//
-//    message_handle = IoTHubMessage_CreateFromString(telemetry_msg_buffer);
-
-// Set Message property
+// Set Message properties
 //    (void) IoTHubMessage_SetMessageId(message_handle, "MSG_ID");
 //    (void) IoTHubMessage_SetCorrelationId(message_handle, "CORE_ID");
 //ThreadAPI_Sleep(g_interval);
