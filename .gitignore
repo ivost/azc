@@ -2,6 +2,8 @@
 azc
 azc610
 azcX86
+.idea/
+cmake-build-debug/
 
 # Prerequisites
 *.d

@@ -13,23 +13,28 @@
 #include "azure_c_shared_utility/tickcounter.h"
 
 #include "iothubtransportmqtt.h"
+
+#include "parson.h"
+
 #include "certs.h"
 #include "azc.h"
 
 static const char *connectionString = "HostName=iothub-insg-1.azure-devices.net;DeviceId=turbox1;SharedAccessKey=LJguyo+6VW/y6DHWxT5dcD+GRFLlyzwCTxh8qxPUDFE=";
 
-static bool g_continueRunning = true;
-static int g_interval = 10000;  // 10 sec send interval initially
+//static bool g_continueRunning = true;
+//static int g_interval = 10000;  // 10 sec send interval initially
 static size_t g_message_count_send_confirmations = 0;
 
 static IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol = MQTT_Protocol;
 static IOTHUB_MESSAGE_HANDLE message_handle;
 static IOTHUB_DEVICE_CLIENT_HANDLE device_handle;
 
-static float telemetry_temperature;
-static float telemetry_humidity;
-static const char *telemetry_scale = "Celsius";
-static char telemetry_msg_buffer[80];
+//static float telemetry_temperature;
+//static float telemetry_humidity;
+//static const char *telemetry_scale = "Celsius";
+//#define MAX_BUF 16000
+//static char msg_buffer[MAX_BUF];
+
 static int messagecount = 0;
 
 static IOTHUBMESSAGE_DISPOSITION_RESULT receive_msg_callback(IOTHUB_MESSAGE_HANDLE message, void *user_context) {
@@ -89,17 +94,16 @@ device_method_callback(const char *method_name, const unsigned char *payload, si
     if (strcmp(method_name, SetTelemetryIntervalMethod) == 0) {
         if (payload) {
             newInterval = (int) strtol((char *) payload, &end, 10);
-
-            // Interval must be greater than zero.
-            if (newInterval > 0) {
-                // expect sec and covert to ms
-                g_interval = 1000 * (int) strtol((char *) payload, &end, 10);
-                status = 200;
-                RESPONSE_STRING = "{ \"Response\": \"Telemetry reporting interval updated.\" }";
-            } else {
-                status = 500;
-                RESPONSE_STRING = "{ \"Response\": \"Invalid telemetry reporting interval.\" }";
-            }
+//            // Interval must be greater than zero.
+//            if (newInterval > 0) {
+//                // expect sec and convert to ms
+//                g_interval = 1000 * (int) strtol((char *) payload, &end, 10);
+//                status = 200;
+//                RESPONSE_STRING = "{ \"Response\": \"Telemetry reporting interval updated.\" }";
+//            } else {
+//                status = 500;
+//                RESPONSE_STRING = "{ \"Response\": \"Invalid telemetry reporting interval.\" }";
+//            }
         }
     }
 
@@ -182,32 +186,75 @@ int azc_init() {
     (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_AUTO_URL_ENCODE_DECODE, &urlEncodeOn);
     return 0;
 }
-int azc_send() {
-    printf("azc_send");
-    // Construct the iothub message
-    telemetry_temperature = 20.0f + ((float) rand() / RAND_MAX) * 15.0f;
-    telemetry_humidity = 60.0f + ((float) rand() / RAND_MAX) * 20.0f;
 
-    sprintf(telemetry_msg_buffer, "{\"temperature\":%.3f,\"humidity\":%.3f,\"scale\":\"%s\"}",
-            telemetry_temperature, telemetry_humidity, telemetry_scale);
+char * azc_serialize(size_t num_boxes, struct bbox * pboxes) {
+    JSON_Value *root_value = json_value_init_object();
+    JSON_Object *root_object = json_value_get_object(root_value);
 
-    message_handle = IoTHubMessage_CreateFromString(telemetry_msg_buffer);
+    JSON_Value *arr = json_value_init_array();
+    json_object_set_value(root_object, "bbox", arr);
+    JSON_Array * obj_arr = json_value_get_array(arr);
+
+    struct bbox * pb = pboxes;
+    for (size_t idx = 0; idx < num_boxes; idx++) {
+        JSON_Value *val = json_value_init_object();
+        JSON_Object *obj = json_value_get_object(val);
+        json_object_set_number(obj, "x", pb->x);
+        json_object_set_number(obj, "y", pb->y);
+        json_object_set_number(obj, "conf", pb->confidence);
+        json_array_append_value(obj_arr, val);
+        pb ++;
+    }
+    char * p = json_serialize_to_string(root_value);
+    json_value_free(root_value);
+    return p;
+}
+/*
+val = json_value_init_object();
+TEST(val != NULL);
+
+obj = json_value_get_object(val);
+TEST(obj != NULL);
+
+TEST(json_object_set_string(obj, "first", "John") == JSONSuccess);
+TEST(json_object_set_string(obj, "last", "Doe") == JSONSuccess);
+TEST(json_object_set_number(obj, "age", 25) == JSONSuccess);
+TEST(json_object_set_boolean(obj, "registered", 1) == JSONSuccess);
+
+TEST(json_object_set_value(obj, "interests", json_value_init_array()) == JSONSuccess);
+interests_arr = json_object_get_array(obj, "interests");
+TEST(interests_arr != NULL);
+TEST(json_array_append_string(interests_arr, "Writing") == JSONSuccess);
+*/
+
+int azc_send(size_t num_boxes, struct bbox * boxes) {
+    printf("azc_send %zu boxes\n", num_boxes);
+
+//    telemetry_temperature = 20.0f + ((float) rand() / RAND_MAX) * 15.0f;
+//    telemetry_humidity = 60.0f + ((float) rand() / RAND_MAX) * 20.0f;
+//
+//    sprintf(telemetry_msg_buffer, "{\"temperature\":%.3f,\"humidity\":%.3f,\"scale\":\"%s\"}",
+//            telemetry_temperature, telemetry_humidity, telemetry_scale);
+//
+//    message_handle = IoTHubMessage_CreateFromString(telemetry_msg_buffer);
 
     // Set Message property
-    (void) IoTHubMessage_SetMessageId(message_handle, "MSG_ID");
-    (void) IoTHubMessage_SetCorrelationId(message_handle, "CORE_ID");
+//    (void) IoTHubMessage_SetMessageId(message_handle, "MSG_ID");
+//    (void) IoTHubMessage_SetCorrelationId(message_handle, "CORE_ID");
     (void) IoTHubMessage_SetContentTypeSystemProperty(message_handle, "application%2fjson");
     (void) IoTHubMessage_SetContentEncodingSystemProperty(message_handle, "utf-8");
 
     // Add custom properties to message
     // (void) IoTHubMessage_SetProperty(message_handle, "property_key", "property_value");
+    char * msg = azc_serialize(num_boxes, boxes);
+    (void) printf("\r\nSending message %d to IoTHub\r\nMessage: %s\r\n", (int) (messagecount + 1), msg);
 
-    (void) printf("\r\nSending message %d to IoTHub\r\nMessage: %s\r\n", (int) (messagecount + 1),
-                  telemetry_msg_buffer);
     IoTHubDeviceClient_SendEventAsync(device_handle, message_handle, send_confirm_callback, NULL);
     // safe to destroy
     IoTHubMessage_Destroy(message_handle);
     messagecount = messagecount + 1;
+    json_free_serialized_string(msg);
+    // todo: free other objects?
 
     //ThreadAPI_Sleep(g_interval);
     return 0;
