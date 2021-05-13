@@ -33,7 +33,7 @@ struct bbox {
     uint16_t y;
     uint16_t width;
     uint16_t height;
-    uint16_t conf;
+    float    conf;
     uint16_t cat;       // class index
 };
 

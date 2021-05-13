@@ -211,7 +211,7 @@ char * azc_serialize_result(struct objdet_result * res) {
         json_array_append_number(arr, pb->width);
         json_array_append_number(arr, pb->height);
         json_array_append_number(arr, pb->cat);
-        json_array_append_number(arr, pb->conf);
+        json_array_append_number(arr, float_to_int(pb->conf));
         json_array_append_value(bbs_arr, arrb);
         pb ++;
     }
@@ -219,18 +219,7 @@ char * azc_serialize_result(struct objdet_result * res) {
     json_value_free(rootv);
     return p;
 }
-/*
-    uint32_t ctx_id;
-    uint16_t cam;
-    uint16_t width;
-    uint16_t height;
-    uint16_t model;
-    float scale_x;
-    float scale_y;
-    // bbox field list - e.g. "x,y,w,h,conf,cat"
-    char  fields[MAX_FIELDS];
 
- */
 char * azc_serialize_context(struct cam_context * ctx) {
     JSON_Value *rootv = json_value_init_object();
     JSON_Object *root = json_value_get_object(rootv);

@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
             pbt->y = 2 + i;
             pbt->width = 10 + 20*i;
             pbt->height = 20 + 40*i;
-            pbt->conf = 5 + i;
+            pbt->conf = 0.543666666;
             pbt->cat = 1;
             pbt++;
         }
