@@ -11,7 +11,7 @@ $CC src/azc.c src/certs.c -c -fPIC \
 $CC azc.o certs.o -shared -o libazc.so \
    -L lib \
    -l iothub_client_mqtt_transport -l iothub_client \
-   -l umqtt -l aziotsharedutil -l parson 
+   -l umqtt -l aziotsharedutil -l parson
 
 $CC src/main.c \
   -o azc610 \
@@ -20,4 +20,7 @@ $CC src/main.c \
   -L lib \
   -Wl,-rpath-link=lib \
   -l azc \
-  -l crypto -l ssl -l curl -l pthread -l m
+  -l crypto -l ssl -l curl -l pthread -l m -l rt
+
+file azc610
+scp -P222 azc610 libazc.so $UTBR:

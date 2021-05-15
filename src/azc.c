@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "iothub.h"
 #include "iothub_device_client.h"
 #include "iothub_client_options.h"
@@ -35,18 +34,20 @@ static IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol = MQTT_Protocol;
 static IOTHUB_MESSAGE_HANDLE message_handle;
 static IOTHUB_DEVICE_CLIENT_HANDLE device_handle;
 
+
 static int messagecount = 0;
-
-
+// init - returns 0 on success, else error
 int azc_init() {
-    printf("azc_init");
-    (void) IoTHub_Init();
-
-    (void) printf("Creating IoTHub handle\r\n");
+    int rc = IoTHub_Init();
+    printf("azc_init, rc %d", rc);
+    if (rc) {
+        return rc;
+    }
+    printf("Creating IoTHub handle\r\n");
     // Create the iothub handle here
     device_handle = IoTHubDeviceClient_CreateFromConnectionString(connectionString, protocol);
     if (device_handle == NULL) {
-        (void) printf("Failure creating IotHub device. Hint: Check your connection string.\r\n");
+        printf("Failure creating IotHub device. Hint: Check your connection string.\r\n");
         return 1;
     }
     // Setting message callback to get C2D messages

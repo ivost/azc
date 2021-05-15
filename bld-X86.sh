@@ -15,7 +15,7 @@ gcc src/main.c \
  -I include -I src -I deps/umock_c/inc  \
  -L . \
  -l azc \
- -l crypto -l ssl -l curl -l pthread -l m
+ -l crypto -l ssl -l curl -l pthread -l m -l rt
 
  file azcX86
 
