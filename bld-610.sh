@@ -23,4 +23,5 @@ $CC src/main.c \
   -l crypto -l ssl -l curl -l pthread -l m -l rt
 
 file azc610
-scp -P222 azc610 libazc.so $UTBR:
+scp -P222 azc610 libazc.so $UTBR:/data/root
+

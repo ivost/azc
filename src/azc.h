@@ -11,7 +11,10 @@
 extern "C" {
 #endif
 
+#define QUEUE_NAME "/Qazc"
+#define MAX_MSG (2048)
 #define MAX_FIELDS (100)
+#define MAX_BB (100)
 
 // context
 struct cam_context {
@@ -28,21 +31,29 @@ struct cam_context {
 };
 
 // bounding box
+// 16 bytes
 struct bbox {
     uint16_t x;
     uint16_t y;
     uint16_t width;
     uint16_t height;
-    float    conf;
     uint16_t cat;       // class index
+    uint16_t res0;
+    float    conf;
 };
 
+typedef struct bbox BB;
+
+//const int bbox_size = sizeof(struct bbox);
+
 // object detection result
+// 16 bytes + nbb*16 - max 336 b
 struct objdet_result {
     uint64_t time;
     uint32_t ctx_id;
     uint16_t numbb;
-    struct   bbox * bb;
+    uint16_t res1;
+    BB       bb[MAX_BB];
 };
 
 int azc_init();

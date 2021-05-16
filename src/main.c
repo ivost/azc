@@ -6,9 +6,6 @@
 #include "azure_c_shared_utility/threadapi.h"
 #include "azc.h"
 
-#define QUEUE_NAME "/Qazc"
-#define MAX_MSG (8000)
-
 static mqd_t mq = -1;
 
 int msg_init() {
@@ -34,7 +31,7 @@ int msg_init() {
 int main(int argc, char *argv[]) {
     int rc;
     struct cam_context ctx;
-    struct objdet_result r;
+    struct objdet_result * pr;
     struct bbox * pbt;
     char msg[MAX_MSG];
 
@@ -49,16 +46,8 @@ int main(int argc, char *argv[]) {
         printf("Init error");
         return rc;
     }
-    int i = 0;
-    while (1) {
-        int n = mq_receive(mq, msg, MAX_MSG, 0);
-        if (n < 0) {
-            printf("mq_receive error\n");
-            ThreadAPI_Sleep(1000);
-            continue;
-        }
-        printf("got %d bytes\n", n);
-        i++;
+// send context - once on start
+//todo: move to plugin
         ctx.ctx_id = 100;
         ctx.cam = 2;
         ctx.model = 3;
@@ -71,24 +60,18 @@ int main(int argc, char *argv[]) {
         rc = azc_send_context(&ctx);
         (void) rc;
 
-        r.ctx_id = ctx.ctx_id;
-
-        r.time = time(NULL);
-        r.numbb = i+1;
-        r.bb = pbt = calloc(r.numbb, sizeof(struct bbox));
-        for (int i=0; i<r.numbb; i++) {
-            pbt->x = 1 + i;
-            pbt->y = 2 + i;
-            pbt->width = 10 + 20*i;
-            pbt->height = 20 + 40*i;
-            pbt->conf = 0.543666666;
-            pbt->cat = 1;
-            pbt++;
+    while (1) {
+        int n = mq_receive(mq, msg, MAX_MSG, 0);
+        if (n < 0) {
+            printf("mq_receive error\n");
+            ThreadAPI_Sleep(1000);
+            continue;
         }
-        rc = azc_send_result(&r);
+        pr = (struct objdet_result *) &msg;
+        printf("got %d bytes, num bb %d\n", n, pr->numbb);
+        rc = azc_send_result(pr);
         (void) rc;
         //ThreadAPI_Sleep(100);
-        free(r.bb);
     }
 
     ThreadAPI_Sleep(1000);

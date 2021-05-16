@@ -39,10 +39,13 @@ static int messagecount = 0;
 // init - returns 0 on success, else error
 int azc_init() {
     int rc = IoTHub_Init();
-    printf("azc_init, rc %d", rc);
+    printf("azc_init, IoTHub_Init rc %d\n", rc);
     if (rc) {
         return rc;
     }
+
+    printf("bbox_size %lu, sizeof objdet_result %lu\n", sizeof(BB), sizeof(struct objdet_result));
+
     printf("Creating IoTHub handle\r\n");
     // Create the iothub handle here
     device_handle = IoTHubDeviceClient_CreateFromConnectionString(connectionString, protocol);
