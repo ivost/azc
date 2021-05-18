@@ -4,8 +4,8 @@ project(azc)
 include_directories(. ./src ./include)
 link_directories(./lib)
 
-add_executable(azc 
-	src/azc.c
+add_executable(azc
+        src/azc.c
 	src/certs.c
 		src/main.c)
 

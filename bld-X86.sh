@@ -1,7 +1,5 @@
 
-rm *.o
-rm libazc.so
-rm azcX86
+rm -f *.o libazc.so azcX86
 
 gcc src/azc.c src/certs.c -c -fPIC \
    -I include -I src -I deps/umock_c/inc
@@ -10,7 +8,7 @@ gcc azc.o certs.o -shared -o libazc.so \
    -l iothub_client_mqtt_transport -l iothub_client \
    -l umqtt -l aziotsharedutil -l parson 
 
-gcc src/main.c \
+gcc src/main.c src/hub.c src/upload.c \
  -o azcX86 \
  -I include -I src -I deps/umock_c/inc  \
  -L . \

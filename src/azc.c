@@ -5,9 +5,7 @@
 #include "iothub_device_client.h"
 #include "iothub_client_options.h"
 #include "iothub_message.h"
-//#include "azure_c_shared_utility/threadapi.h"
 #include "azure_c_shared_utility/crt_abstractions.h"
-//#include "azure_c_shared_utility/platform.h"
 #include "azure_c_shared_utility/shared_util_options.h"
 #include "azure_c_shared_utility/tickcounter.h"
 #include "iothubtransportmqtt.h"
@@ -26,7 +24,7 @@ static void connection_status_callback(IOTHUB_CLIENT_CONNECTION_STATUS result,
 
 static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void *userContextCallback);
 
-static const char *connectionString = "HostName=iothub-insg-1.azure-devices.net;DeviceId=turbox1;SharedAccessKey=LJguyo+6VW/y6DHWxT5dcD+GRFLlyzwCTxh8qxPUDFE=";
+static const char *connectionString = "HostName=ivohub2.azure-devices.net;DeviceId=C610;SharedAccessKey=KkuvGKU0am1wL6+fgI9Xp/JUZr5ataYhQcfQ2Csd9XA=";
 
 static size_t g_message_count_send_confirmations = 0;
 
@@ -39,7 +37,7 @@ static int messagecount = 0;
 // init - returns 0 on success, else error
 int azc_init() {
     int rc = IoTHub_Init();
-    printf("azc_init, IoTHub_Init rc %d\n", rc);
+    printf("azc v.1.5.18.1, IoTHub_Init rc %d\n", rc);
     if (rc) {
         return rc;
     }
@@ -190,9 +188,9 @@ static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void
                   (unsigned long) g_message_count_send_confirmations,
                   MU_ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
 }
-
+// 3 decimal points precision - divide by 1000
 int32_t float_to_int(float f) {
-    return (int32_t) roundf(10000 * f);
+    return (int32_t) roundf(1000 * f);
 }
 
 char * azc_serialize_result(struct objdet_result * res) {

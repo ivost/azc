@@ -11,8 +11,6 @@
 extern "C" {
 #endif
 
-#define QUEUE_NAME "/Qazc"
-#define MAX_MSG (2048)
 #define MAX_FIELDS (100)
 #define MAX_BB (100)
 
@@ -44,8 +42,6 @@ struct bbox {
 
 typedef struct bbox BB;
 
-//const int bbox_size = sizeof(struct bbox);
-
 // object detection result
 // 16 bytes + nbb*16 - max 336 b
 struct objdet_result {
@@ -67,5 +63,6 @@ int azc_reset();
 #ifdef __cplusplus
 }
 #endif
+
 
 #endif // GST_AZC_H
