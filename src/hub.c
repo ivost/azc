@@ -1,10 +1,12 @@
-//
-// Created by ivo on 5/18/21.
-//
-
+/*
+ * Process trigger messages coming from ML
+ * Send to event hub
+ * Track trigger time/context to enable upload of proper clip
+ */
 #include <mqueue.h>
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 
 #include "azc.h"
 #include "azure_c_shared_utility/threadapi.h"
@@ -12,6 +14,8 @@
 
 #define QUEUE_NAME "/Qazc"
 #define MAX_MSG (8000)
+
+void mark_trigger(int context, long time);
 
 mqd_t msg_init() {
     mqd_t mq = -1;
@@ -45,6 +49,7 @@ void * hub_thread(void *ptr)
     struct objdet_result * pr;
     struct bbox * pbt;
     char msg[MAX_MSG];
+    long now;
 
     mq = msg_init();
     if (mq == -1) {
@@ -57,19 +62,6 @@ void * hub_thread(void *ptr)
         printf("AZ HUB Init error");
         return NULL;
     }
-    // send context - once on start
-    //todo: move to plugin
-    ctx.ctx_id = 100;
-    ctx.cam = 2;
-    ctx.model = 3;
-    ctx.width = 640;
-    ctx.height = 480;
-    ctx.scale_x = 0.521;
-    ctx.scale_y = 0.4333;
-    strcpy(ctx.fields, "x,y,w,h,conf,cat");
-
-    rc = azc_send_context(&ctx);
-    (void) rc;
 
     while (1) {
         int n = mq_receive(mq, msg, MAX_MSG, 0);
@@ -79,7 +71,11 @@ void * hub_thread(void *ptr)
             continue;
         }
         pr = (struct objdet_result *) &msg;
-        printf("<<<<< ctx %d, num bb %d\n", pr->ctx_id, pr->numbb);
+        now = time(NULL);
+        printf("<<<<< now %ld, ctx %d, num bb %d\n", now, pr->ctx_id, pr->numbb);
+
+        mark_trigger(pr->ctx_id-1, now);
+
         rc = azc_send_result(pr);
         (void) rc;
         ThreadAPI_Sleep(10);

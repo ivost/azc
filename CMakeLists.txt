@@ -5,9 +5,11 @@ include_directories(. ./src ./include)
 link_directories(./lib)
 
 add_executable(azc
-        src/azc.c
+    src/azc.c
+	src/hub.c
+	src/upload.c
 	src/certs.c
-		src/main.c)
+	src/main.c)
 
 target_link_libraries(azc
     iothub_client_mqtt_transport

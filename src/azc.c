@@ -64,7 +64,9 @@ int azc_init() {
 
     // Setting Log Tracing.
     // Log tracing is supported in MQTT and AMQP. Not HTTP.
-    bool traceOn = true;
+
+    bool traceOn = false;
+
     (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_LOG_TRACE, &traceOn);
     // Setting the frequency of DoWork calls by the underlying process thread.
     // The value ms_delay is a delay between DoWork calls, in milliseconds.
