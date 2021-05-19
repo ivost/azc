@@ -4,6 +4,7 @@
  * Track trigger time/context to enable upload of proper clip
  */
 #include <mqueue.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
@@ -11,11 +12,11 @@
 #include "azc.h"
 #include "azure_c_shared_utility/threadapi.h"
 #include "hub.h"
+#include "upload.h"
 
 #define QUEUE_NAME "/Qazc"
 #define MAX_MSG (8000)
 
-void mark_trigger(int context, long time);
 
 mqd_t msg_init() {
     mqd_t mq = -1;
@@ -73,9 +74,8 @@ void * hub_thread(void *ptr)
         pr = (struct objdet_result *) &msg;
         now = time(NULL);
         printf("<<<<< now %ld, ctx %d, num bb %d\n", now, pr->ctx_id, pr->numbb);
-
-        mark_trigger(pr->ctx_id-1, now);
-
+        int ctx = pr->ctx_id - 1;
+        mark_trigger(ctx, now);
         rc = azc_send_result(pr);
         (void) rc;
         ThreadAPI_Sleep(10);
@@ -83,4 +83,3 @@ void * hub_thread(void *ptr)
     azc_reset();
     return NULL;
 }
-

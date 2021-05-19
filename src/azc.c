@@ -37,14 +37,11 @@ static int messagecount = 0;
 // init - returns 0 on success, else error
 int azc_init() {
     int rc = IoTHub_Init();
-    printf("azc v.1.5.18.1, IoTHub_Init rc %d\n", rc);
     if (rc) {
         return rc;
     }
-
-    printf("bbox_size %lu, sizeof objdet_result %lu\n", sizeof(BB), sizeof(struct objdet_result));
-
-    printf("Creating IoTHub handle\r\n");
+    //printf("bbox_size %lu, sizeof objdet_result %lu\n", sizeof(BB), sizeof(struct objdet_result));
+    //printf("Creating IoTHub handle\r\n");
     // Create the iothub handle here
     device_handle = IoTHubDeviceClient_CreateFromConnectionString(connectionString, protocol);
     if (device_handle == NULL) {
@@ -186,10 +183,11 @@ static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void
     (void) userContextCallback;
     // When a message is sent this callback will get invoked
     g_message_count_send_confirmations++;
-    (void) printf("Confirmation callback received for message %lu with result %s\r\n",
-                  (unsigned long) g_message_count_send_confirmations,
-                  MU_ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
+//    printf("Confirmation callback received for message %lu with result %s\r\n",
+//                  (unsigned long) g_message_count_send_confirmations,
+//                  MU_ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
 }
+
 // 3 decimal points precision - divide by 1000
 int32_t float_to_int(float f) {
     return (int32_t) roundf(1000 * f);
@@ -269,6 +267,29 @@ int azc_send_result(struct objdet_result * res) {
     json_free_serialized_string(msg);
     IoTHubMessage_Destroy(message_handle);
     messagecount = messagecount + 1;
+    return rc;
+}
+
+int azc_send_video_id(int ctx_id, long trig_time, const char * uuid) {
+    int rc = 0;
+    printf("azc_send_video_id - ctx %d, trig time %ld, video uuid %s\n", ctx_id, trig_time, uuid);
+
+    JSON_Value *rootv = json_value_init_object();
+    JSON_Object *root = json_value_get_object(rootv);
+    json_object_set_number(root, "cid", ctx_id);
+    json_object_set_number(root, "t", trig_time);
+    json_object_set_string(root, "vid", uuid);
+    char * msg = json_serialize_to_string(rootv);
+
+    printf("=== Sending video_id to IoTHub\nMessage: %s\n",  msg);
+    message_handle = IoTHubMessage_CreateFromString(msg);
+    IoTHubMessage_SetProperty(message_handle, "T", "V");
+    IoTHubMessage_SetContentTypeSystemProperty(message_handle, "application/json");
+    rc = IoTHubDeviceClient_SendEventAsync(device_handle, message_handle, send_confirm_callback, NULL);
+    // safe to destroy
+    json_value_free(rootv);
+    json_free_serialized_string(msg);
+    IoTHubMessage_Destroy(message_handle);
     return rc;
 }
 
