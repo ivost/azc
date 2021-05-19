@@ -281,7 +281,7 @@ int azc_send_video_id(int ctx_id, long trig_time, const char * uuid) {
     json_object_set_string(root, "vid", uuid);
     char * msg = json_serialize_to_string(rootv);
 
-    printf("=== Sending video_id to IoTHub\nMessage: %s\n",  msg);
+    //printf("=== Sending video_id to IoTHub\nMessage: %s\n",  msg);
     message_handle = IoTHubMessage_CreateFromString(msg);
     IoTHubMessage_SetProperty(message_handle, "T", "V");
     IoTHubMessage_SetContentTypeSystemProperty(message_handle, "application/json");

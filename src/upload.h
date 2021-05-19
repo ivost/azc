@@ -9,8 +9,8 @@ void * upload_thread(void *ptr);
 
 char * upload_file(char *name, int ctx, long trig_time);
 
-void mark_trigger(int context, long time);
-void get_file(int context, char * result, int len);
+void set_trigger(int context, long time);
 long get_trigger(int context);
+void clear_trigger(int context);
 
 #endif //AZC_UPLOAD_H

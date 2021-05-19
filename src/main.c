@@ -2,11 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <time.h>
+//#include <time.h>
 #include <pthread.h>
 #include <parson.h>
-
-#include "azc.h"
+//#include "azc.h"
 
 #include "hub.h"
 #include "upload.h"
@@ -17,7 +16,7 @@ int main(int argc, char *argv[]) {
 //    test();
 
     pthread_t thread1, thread2;
-    printf("azc v.1.5.19.0 enter");
+    printf("azc v.1.5.19.2 enter");
     pthread_create( &thread1, NULL, hub_thread, NULL);
     pthread_create( &thread2, NULL, upload_thread, NULL);
     pthread_join( thread1, NULL);

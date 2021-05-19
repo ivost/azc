@@ -73,9 +73,9 @@ void * hub_thread(void *ptr)
         }
         pr = (struct objdet_result *) &msg;
         now = time(NULL);
-        printf("<<<<< now %ld, ctx %d, num bb %d\n", now, pr->ctx_id, pr->numbb);
-        int ctx = pr->ctx_id - 1;
-        mark_trigger(ctx, now);
+        int ctx = pr->ctx_id;
+        //printf("<<<<< now %ld, ctx %d, num bb %d\n", now, ctx, pr->numbb);
+        set_trigger(ctx, now);
         rc = azc_send_result(pr);
         (void) rc;
         ThreadAPI_Sleep(10);
