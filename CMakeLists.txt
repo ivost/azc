@@ -14,12 +14,13 @@ add_executable(azc
 target_link_libraries(azc
     iothub_client_mqtt_transport
     iothub_client
+	parson
     umqtt
     aziotsharedutil
-    parson
     crypto
     ssl
     curl
     pthread
+	rt
     m
    )
