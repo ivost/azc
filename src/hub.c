@@ -48,13 +48,13 @@ void * hub_thread(void *ptr)
 
     mq = msg_init();
     if (mq == -1) {
-        printf("Init error");
+        printf("MQ Init error");
         return NULL;
     }
 
     rc = azc_init();
     if (rc != 0) {
-        printf("Init error");
+        printf("AZ HUB Init error");
         return NULL;
     }
     // send context - once on start
@@ -79,7 +79,7 @@ void * hub_thread(void *ptr)
             continue;
         }
         pr = (struct objdet_result *) &msg;
-        printf("got %d bytes, num bb %d\n", n, pr->numbb);
+        printf("<<<<< ctx %d, num bb %d\n", pr->ctx_id, pr->numbb);
         rc = azc_send_result(pr);
         (void) rc;
         ThreadAPI_Sleep(10);
