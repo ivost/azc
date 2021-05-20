@@ -18,10 +18,8 @@ int main(int argc, char *argv[]) {
 //    test();
 
     pthread_t thread1, thread2;
-    printf("azc v.1.5.19.2 enter");
-
-    printf("c++ called with 'foo' - result %s\n", echo("foo"));
-
+    printf("azc v.1.5.19.3 enter\n");
+    //printf("c++ called with 'foo' - result %s\n", echo("foo"));
     pthread_create( &thread1, NULL, hub_thread, NULL);
     pthread_create( &thread2, NULL, upload_thread, NULL);
     pthread_join( thread1, NULL);

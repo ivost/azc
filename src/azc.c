@@ -255,9 +255,9 @@ int azc_send_context(struct cam_context * ctx) {
 
 int azc_send_result(struct objdet_result * res) {
     int rc = 0;
-    printf("azc_send_result - ctx %d, %d boxes\n", res->ctx_id, res->numbb);
+    //printf("azc_send_result - ctx %d, %d boxes\n", res->ctx_id, res->numbb);
     char * msg = azc_serialize_result(res);
-    printf("Sending result message %d to IoTHub\nMessage: %s\n", (int) (messagecount + 1), msg);
+    //printf("Sending result message %d to IoTHub\nMessage: %s\n", (int) (messagecount + 1), msg);
     message_handle = IoTHubMessage_CreateFromString(msg);
     IoTHubMessage_SetContentTypeSystemProperty(message_handle, "application/json");
     // IoTHubMessage_SetContentEncodingSystemProperty(message_handle, "utf-8");
@@ -280,7 +280,6 @@ int azc_send_video_id(int ctx_id, long trig_time, const char * uuid) {
     json_object_set_number(root, "t", trig_time);
     json_object_set_string(root, "vid", uuid);
     char * msg = json_serialize_to_string(rootv);
-
     //printf("=== Sending video_id to IoTHub\nMessage: %s\n",  msg);
     message_handle = IoTHubMessage_CreateFromString(msg);
     IoTHubMessage_SetProperty(message_handle, "T", "V");

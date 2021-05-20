@@ -12,13 +12,14 @@ $CC azc.o certs.o -shared -o libazc.so \
    -l iothub_client_mqtt_transport -l iothub_client \
    -l umqtt -l aziotsharedutil -l parson
 
-$CC src/main.c src/hub.c src/upload.c \
+$CC src/main.c src/hub.c src/upload.c src/Uploader.cpp \
   -o azc610 \
   -I include -I src -I deps/umock_c/inc  \
   -L . \
   -L lib \
   -Wl,-rpath-link=lib \
   -l azc \
+  -l stdc++ \
   -l crypto -l ssl -l curl -l pthread -l m -l rt
 
 file azc610

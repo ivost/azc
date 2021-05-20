@@ -30,12 +30,7 @@ const char * CURL= "curl --silent -X POST 'https://api.cloudflare.com/client/v4/
 
 long triggers[MAX_CONTEXT];
 
-char * upload_file(char *p, int ctx, long time);
-
-char * build_file_name(char *p, int ctx, long time);
-char * build_command(char *file_name);
-
-// trigger is 0:max-1
+// trigger is 1:max
 void set_trigger(int context, long t) {
     if (context < 0 || context >= MAX_CONTEXT) {
         printf("set_trigger error ctx %d\n", context);
@@ -43,7 +38,7 @@ void set_trigger(int context, long t) {
     }
     pthread_mutex_lock(&trigger_lock);
     if (triggers[context] == 0) {
-        //printf("mark trigger %ld, ctx %d\n", triggers[context], context);
+        printf("set trigger %ld, ctx %d\n", triggers[context], context);
         triggers[context] = t;
     }
     pthread_mutex_unlock(&trigger_lock);
@@ -78,11 +73,11 @@ int is_digit(char c) {
 }
 
 // returns context 1:max
-int get_context(char *name) {
+int get_context(const char *name) {
     int res = -1;
     char ctx[MAX_FILE_NAME+1];
     char *p, *q;
-    for (p = name; *p != 0 && !is_digit(*p); p++);
+    for (p = (char *) name; *p != 0 && !is_digit(*p); p++);
     if (*p == 0) {
         return res;
     }
@@ -103,6 +98,47 @@ void filewatch_init(char *dir, int *fd, int *wd) {
     printf("filewatch_init %s, fw %d, wd %d\n", dir, *fd, *wd);
 }
 
+void process_event(struct inotify_event * p_event) {
+    const char * name = (const char * ) p_event->name;
+    int ctx = get_context(name);
+    if ( p_event->mask & IN_OPEN ) {
+        //printf( "File %s opened.\n",  name);
+        //mark_file(ctx, name);
+    } else if ( p_event->mask & IN_CREATE ) {
+        printf( "New file %s created.\n", name);
+        //mark_file(ctx, name);
+    } else if ( p_event->mask & IN_CLOSE ) {
+        long t = get_trigger(ctx);
+        //mark_file(ctx, name);
+        printf( "ctx %d File %s closed, trigger %ld\n", ctx, name, t);
+        if (t == 0) {
+            return;
+        }
+        clear_trigger(ctx);
+        printf( "*** trigger upload %s\n", name);
+        // todo: need some queue struct and another upload thread
+        char * json = upload_file(name, ctx, t);
+        JSON_Object * root_object;
+        JSON_Value  * root_value;
+        root_value = json_parse_string(json);
+        if (root_value == NULL) {
+            printf("JSON PARSE ERROR %s\n", json);
+            return;
+        }
+        root_object = json_value_get_object(root_value);
+        const char * vid = json_object_dotget_string(root_object, "result.uid");
+        // send video uuid
+        if (vid != NULL && strlen(vid) > 0) {
+            printf("VIDEO UUID %s\n", vid);
+            azc_send_video_id(ctx, t, vid);
+        }
+        json_value_free(root_value);
+    } else if ( p_event->mask & IN_DELETE ) {
+        printf("File %s deleted.\n", name);
+    }
+    return;
+}
+
 void * upload_thread(void *ptr) {
     (void) ptr;
     int fd, wd;
@@ -120,58 +156,20 @@ void * upload_thread(void *ptr) {
         usleep(1000);
         numRead = read(fd, buf, EVENT_BUF_LEN);
         for (char *p = buf; p < buf + numRead; ) {
-            p_event = ( struct inotify_event * ) p;
-            char *name = p_event->name;
-            ctx = get_context(name);
-            if (ctx <= 0) {
-                continue;
-            }
-            if ( p_event->mask & IN_OPEN ) {
-                //printf( "File %s opened.\n",  name);
-                //mark_file(ctx, name);
-            } else if ( p_event->mask & IN_CREATE ) {
-                //printf( "New file %s created.\n", name);
-                //mark_file(ctx, name);
-            } else if ( p_event->mask & IN_CLOSE ) {
-                long t = get_trigger(ctx);
-                //mark_file(ctx, name);
-                //printf( "ctx %d File %s closed, trigger %ld\n", ctx, name, t);
-                if (t == 0) {
-                    continue;
-                }
-                clear_trigger(ctx);
-                printf( "*** trigger upload %s\n", name);
-                // todo: need some queue struct and another upload thread
-                char * json = upload_file(name, ctx, t);
-                JSON_Object * root_object;
-                JSON_Value  * root_value;
-                root_value = json_parse_string(json);
-                if (root_value == NULL) {
-                    printf("JSON PARSE ERROR %s\n", json);
-                    continue;
-                }
-                root_object = json_value_get_object(root_value);
-                const char * vid = json_object_dotget_string(root_object, "result.uid");
-                // send video uuid
-                if (vid != NULL && strlen(vid) > 0) {
-                    printf("VIDEO UUID %s\n", vid);
-                    azc_send_video_id(ctx, t, vid);
-                }
-                json_value_free(root_value);
-            } else if ( p_event->mask & IN_DELETE ) {
-                printf("File %s deleted.\n", name);
-            }
+            p_event = (struct inotify_event *) p;
+            process_event(p_event);
             p += sizeof(struct inotify_event) + p_event->len;
         }
     }
     inotify_rm_watch( fd, wd );
 }
 
-char * upload_file(char *name, int ctx, long trig_time) {
+
+char * upload_file(const char *name, int ctx, long trig_time) {
     FILE * fp = NULL;
     char * json = NULL;
 
-    //printf("====== upload file %s, ctx %d, trigger %ld\n", name, ctx, trig_time);
+    printf("upload file %s, ctx %d, trigger %ld\n", name, ctx, trig_time);
     char * file_name = build_file_name(name, ctx, trig_time);
     char * cmd = build_command(file_name);
     //printf("====== upload command %s\n", cmd);
@@ -199,13 +197,13 @@ char * upload_file(char *name, int ctx, long trig_time) {
     return json;
 }
 
-char * build_file_name(char *name, int ctx, long time) {
+char * build_file_name(const char *name, int ctx, long time) {
     char * fname = malloc(100);
     sprintf(fname, "%s", name);
     return fname;
 }
 
-char * build_command(char *file_name) {
+char * build_command(const char *file_name) {
     char * cmd = (char *) malloc(strlen(CURL) + MAX_FILE_NAME);
     sprintf(cmd, CURL, file_name);
     return cmd;
