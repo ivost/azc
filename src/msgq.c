@@ -11,12 +11,11 @@
 
 #include "azc.h"
 #include "azure_c_shared_utility/threadapi.h"
-#include "hub.h"
-#include "upload.h"
+#include "msgq.h"
+#include "watch.h"
 
 #define QUEUE_NAME "/Qazc"
 #define MAX_MSG (8000)
-
 
 mqd_t msg_init() {
     mqd_t mq = -1;
@@ -39,16 +38,15 @@ mqd_t msg_init() {
     return mq;
 }
 
-void * hub_thread(void *ptr)
-{
+void *msgRecvThread(void *ptr) {
     // posix message queue to receive obj.detection events from gst overlay plugin
     mqd_t mq;
     int rc;
     (void) ptr;
 
     struct cam_context ctx;
-    struct objdet_result * pr;
-    struct bbox * pbt;
+    struct objdet_result *pr;
+    struct bbox *pbt;
     char msg[MAX_MSG];
     long now;
 
@@ -64,7 +62,7 @@ void * hub_thread(void *ptr)
         return NULL;
     }
 
-    while (1) {
+    for (;;) {
         int n = mq_receive(mq, msg, MAX_MSG, 0);
         if (n < 0) {
             printf("mq_receive error\n");

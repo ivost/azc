@@ -1,6 +1,7 @@
 /**
  *
  */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -11,7 +12,7 @@
 #include <parson.h>
 
 #include "azc.h"
-#include "upload.h"
+#include "watch.h"
 
 #define VIDEO_DIR "/mnt/sdcard/video/"
 
@@ -22,7 +23,6 @@
 #define EVENT_SIZE    ( sizeof (struct inotify_event) )
 #define EVENT_BUF_LEN ( 1024 * ( EVENT_SIZE + 16 ) )
 
-pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t trigger_lock = PTHREAD_MUTEX_INITIALIZER;;
 
 // todo: token and config
@@ -32,23 +32,15 @@ long triggers[MAX_CONTEXT];
 
 // trigger is 1:max
 void set_trigger(int context, long t) {
-    if (context < 0 || context >= MAX_CONTEXT) {
-        printf("set_trigger error ctx %d\n", context);
-        return;
-    }
     pthread_mutex_lock(&trigger_lock);
     if (triggers[context] == 0) {
-        printf("set trigger %ld, ctx %d\n", triggers[context], context);
         triggers[context] = t;
+        //printf("set trigger %ld, ctx %d\n", triggers[context], context);
     }
     pthread_mutex_unlock(&trigger_lock);
 }
 
 void clear_trigger(int context) {
-    if (context < 0 || context >= MAX_CONTEXT) {
-        printf("clear_trigger error ctx %d\n", context);
-        return;
-    }
     pthread_mutex_lock(&trigger_lock);
     triggers[context] = 0;
     pthread_mutex_unlock(&trigger_lock);
@@ -56,14 +48,9 @@ void clear_trigger(int context) {
 
 // trigger is 0:max-1
 long get_trigger(int context) {
-    if (context < 0 || context >= MAX_CONTEXT) {
-        printf("get_trigger error ctx %d\n", context);
-        return 0;
-    }
     pthread_mutex_lock(&trigger_lock);
     long t = triggers[context];
     pthread_mutex_unlock(&trigger_lock);
-    //printf("get trigger %ld, ctx %d\n", t, context);
     return t;
 }
 
@@ -88,82 +75,63 @@ int get_context(const char *name) {
     strncpy(ctx, p, len);
     ctx[len] = 0;
     sscanf(ctx, "%d", &res);
-    //printf("get_context %s -> %d\n", name, res);
     return res;
 }
 
-void filewatch_init(char *dir, int *fd, int *wd) {
-    *fd = inotify_init();
-    *wd = inotify_add_watch( *fd, dir, IN_CREATE | IN_OPEN | IN_CLOSE | IN_DELETE );
-    printf("filewatch_init %s, fw %d, wd %d\n", dir, *fd, *wd);
-}
-
-void process_event(struct inotify_event * p_event) {
-    const char * name = (const char * ) p_event->name;
-    int ctx = get_context(name);
-    if ( p_event->mask & IN_OPEN ) {
-        //printf( "File %s opened.\n",  name);
-        //mark_file(ctx, name);
-    } else if ( p_event->mask & IN_CREATE ) {
-        printf( "New file %s created.\n", name);
-        //mark_file(ctx, name);
-    } else if ( p_event->mask & IN_CLOSE ) {
-        long t = get_trigger(ctx);
-        //mark_file(ctx, name);
-        printf( "ctx %d File %s closed, trigger %ld\n", ctx, name, t);
-        if (t == 0) {
-            return;
-        }
-        clear_trigger(ctx);
-        printf( "*** trigger upload %s\n", name);
-        // todo: need some queue struct and another upload thread
-        char * json = upload_file(name, ctx, t);
-        JSON_Object * root_object;
-        JSON_Value  * root_value;
-        root_value = json_parse_string(json);
-        if (root_value == NULL) {
-            printf("JSON PARSE ERROR %s\n", json);
-            return;
-        }
-        root_object = json_value_get_object(root_value);
-        const char * vid = json_object_dotget_string(root_object, "result.uid");
-        // send video uuid
-        if (vid != NULL && strlen(vid) > 0) {
-            printf("VIDEO UUID %s\n", vid);
-            azc_send_video_id(ctx, t, vid);
-        }
-        json_value_free(root_value);
-    } else if ( p_event->mask & IN_DELETE ) {
-        printf("File %s deleted.\n", name);
+void onFileChange(struct inotify_event *p_event) {
+    if ((p_event->mask & IN_CLOSE_WRITE) == 0) {
+        return;
     }
-    return;
+    const char *name = (const char *) p_event->name;
+    int ctx = get_context(name);
+    long t = get_trigger(ctx);
+    if (t == 0) {
+        return;
+    }
+    //printf("*** ctx %d File %s closed, trigger %ld\n", ctx, name, t);
+    clear_trigger(ctx);
+    // todo: need some queue struct and another upload thread
+    char *json = upload_file(name, ctx, t);
+    JSON_Object *root_object;
+    JSON_Value *root_value;
+    root_value = json_parse_string(json);
+    if (root_value == NULL) {
+        printf("JSON PARSE ERROR %s\n", json);
+        return;
+    }
+    root_object = json_value_get_object(root_value);
+    const char *vid = json_object_dotget_string(root_object, "result.uid");
+    // send video uuid
+    if (vid != NULL && strlen(vid) > 0) {
+        //printf("VIDEO UUID %s\n", vid);
+        azc_send_video_id(ctx, t, vid);
+    }
+    json_value_free(root_value);
 }
 
-void * upload_thread(void *ptr) {
+_Noreturn
+void *watchThread(void *ptr) {
     (void) ptr;
     int fd, wd;
     int numRead;
     char buf[EVENT_BUF_LEN];
-    struct inotify_event * p_event;
-    int ctx;
-
-    printf("upload_thread\n");
-    filewatch_init(VIDEO_DIR, &fd, &wd);
+    struct inotify_event *p_event;
+    fd = inotify_init();
+    wd = inotify_add_watch(fd, VIDEO_DIR, IN_CLOSE_WRITE);
     if (fd == -1 || wd == -1) {
         printf("inotify error dir %s\n", VIDEO_DIR);
     }
     for (;;) {
         usleep(1000);
         numRead = read(fd, buf, EVENT_BUF_LEN);
-        for (char *p = buf; p < buf + numRead; ) {
+        for (char *p = buf; p < buf + numRead;) {
             p_event = (struct inotify_event *) p;
-            process_event(p_event);
+            onFileChange(p_event);
             p += sizeof(struct inotify_event) + p_event->len;
         }
     }
     inotify_rm_watch( fd, wd );
 }
-
 
 char * upload_file(const char *name, int ctx, long trig_time) {
     FILE * fp = NULL;

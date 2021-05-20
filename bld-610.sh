@@ -12,7 +12,7 @@ $CC azc.o certs.o -shared -o libazc.so \
    -l iothub_client_mqtt_transport -l iothub_client \
    -l umqtt -l aziotsharedutil -l parson
 
-$CC src/main.c src/hub.c src/upload.c src/Uploader.cpp \
+$CC src/main.c src/watch.c src/msgq.c src/Uploader.cpp \
   -o azc610 \
   -I include -I src -I deps/umock_c/inc  \
   -L . \

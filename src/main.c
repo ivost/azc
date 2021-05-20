@@ -7,10 +7,10 @@
 #include <parson.h>
 //#include "azc.h"
 
-#include "hub.h"
-#include "upload.h"
+#include "msgq.h"
+#include "watch.h"
 
-char * echo (char *s);
+char *echo(char *s);
 
 void test();
 
@@ -20,10 +20,10 @@ int main(int argc, char *argv[]) {
     pthread_t thread1, thread2;
     printf("azc v.1.5.19.3 enter\n");
     //printf("c++ called with 'foo' - result %s\n", echo("foo"));
-    pthread_create( &thread1, NULL, hub_thread, NULL);
-    pthread_create( &thread2, NULL, upload_thread, NULL);
-    pthread_join( thread1, NULL);
-    pthread_join( thread2, NULL);
+    pthread_create(&thread1, NULL, msgRecvThread, NULL);
+    pthread_create(&thread2, NULL, watchThread, NULL);
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
     printf("azc exit");
     return 0;
 }
