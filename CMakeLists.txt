@@ -8,6 +8,7 @@ add_executable(azc
     src/azc.c
 	src/hub.c
 	src/upload.c
+	src/Uploader.cpp
 	src/certs.c
 	src/main.c)
 
