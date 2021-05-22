@@ -72,10 +72,10 @@ void *msgRecvThread(void *ptr) {
         pr = (struct objdet_result *) &msg;
         now = time(NULL);
         int ctx = pr->ctx_id;
-        //printf("<<<<< now %ld, ctx %d, num bb %d\n", now, ctx, pr->numbb);
         set_trigger(ctx, now);
         rc = azc_send_result(pr);
         (void) rc;
+        printf("<<<<< now %ld, ctx %d, num bb %d\n", now, ctx, pr->numbb);
         ThreadAPI_Sleep(10);
     }
     azc_reset();

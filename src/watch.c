@@ -35,7 +35,7 @@ void set_trigger(int context, long t) {
     pthread_mutex_lock(&trigger_lock);
     if (triggers[context] == 0) {
         triggers[context] = t;
-        //printf("set trigger %ld, ctx %d\n", triggers[context], context);
+        printf("set trigger %ld, ctx %d\n", triggers[context], context);
     }
     pthread_mutex_unlock(&trigger_lock);
 }
@@ -84,14 +84,17 @@ void onFileChange(struct inotify_event *p_event) {
     }
     const char *name = (const char *) p_event->name;
     int ctx = get_context(name);
+    // ignore if no triggers
     long t = get_trigger(ctx);
     if (t == 0) {
         return;
     }
-    //printf("*** ctx %d File %s closed, trigger %ld\n", ctx, name, t);
+    // set end_time = current time = closing time
+    long now = time(NULL);
+    printf("now %ld, t %ld, ctx %d\n", now, t, ctx);
     clear_trigger(ctx);
     // todo: need some queue struct and another upload thread
-    char *json = upload_file(name, ctx, t);
+    char *json = upload_file(name, ctx, now);
     JSON_Object *root_object;
     JSON_Value *root_value;
     root_value = json_parse_string(json);
@@ -133,12 +136,12 @@ void *watchThread(void *ptr) {
     inotify_rm_watch( fd, wd );
 }
 
-char * upload_file(const char *name, int ctx, long trig_time) {
+char * upload_file(const char *name, int ctx, long end_time) {
     FILE * fp = NULL;
     char * json = NULL;
 
-    printf("upload file %s, ctx %d, trigger %ld\n", name, ctx, trig_time);
-    char * file_name = build_file_name(name, ctx, trig_time);
+    printf("upload file %s, ctx %d, end time %ld\n", name, ctx, end_time);
+    char * file_name = build_file_name(name, ctx, end_time);
     char * cmd = build_command(file_name);
     //printf("====== upload command %s\n", cmd);
 

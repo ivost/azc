@@ -7,13 +7,13 @@
 
 _Noreturn void *watchThread(void *ptr);
 
-char *upload_file(const char *p, int ctx, long time);
+char *upload_file(const char *p, int ctx, long end_time);
 
 char *build_file_name(const char *p, int ctx, long time);
 
 char *build_command(const char *file_name);
 
-char *upload_file(const char *name, int ctx, long trig_time);
+char *upload_file(const char *name, int ctx, long end_time);
 
 void set_trigger(int context, long time);
 long get_trigger(int context);

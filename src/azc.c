@@ -9,6 +9,7 @@
 #include "azure_c_shared_utility/shared_util_options.h"
 #include "azure_c_shared_utility/tickcounter.h"
 #include "iothubtransportmqtt.h"
+#include "iothubtransportamqp.h"
 #include "parson.h"
 #include "certs.h"
 #include "azc.h"
@@ -28,7 +29,10 @@ static const char *connectionString = "HostName=ivohub2.azure-devices.net;Device
 
 static size_t g_message_count_send_confirmations = 0;
 
-static IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol = MQTT_Protocol;
+static IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol =
+        AMQP_Protocol;
+//        MQTT_Protocol;
+
 static IOTHUB_MESSAGE_HANDLE message_handle;
 static IOTHUB_DEVICE_CLIENT_HANDLE device_handle;
 
@@ -62,7 +66,8 @@ int azc_init() {
     // Setting Log Tracing.
     // Log tracing is supported in MQTT and AMQP. Not HTTP.
 
-    bool traceOn = false;
+    //bool traceOn = false;
+    bool traceOn = true;
 
     (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_LOG_TRACE, &traceOn);
     // Setting the frequency of DoWork calls by the underlying process thread.
