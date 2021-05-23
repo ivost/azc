@@ -35,7 +35,7 @@ void set_trigger(int context, long t) {
     pthread_mutex_lock(&trigger_lock);
     if (triggers[context] == 0) {
         triggers[context] = t;
-        //printf("set trigger %ld, ctx %d\n", triggers[context], context);
+        printf("set trigger %ld, ctx %d\n", triggers[context], context);
     }
     pthread_mutex_unlock(&trigger_lock);
 }
@@ -43,6 +43,7 @@ void set_trigger(int context, long t) {
 void clear_trigger(int context) {
     pthread_mutex_lock(&trigger_lock);
     triggers[context] = 0;
+    printf("clear trigger %ld, ctx %d\n", triggers[context], context);
     pthread_mutex_unlock(&trigger_lock);
 }
 
@@ -114,6 +115,7 @@ void onFileChange(struct inotify_event *p_event) {
     clear_trigger(ctx);
     // todo: need some queue struct and another upload thread
     begin_time = end_time - duration;
+    printf("ctx %d, trigger %ld, begin %ld, end %ld\n", ctx, t, begin_time, end_time);
     char *json = upload_file(name, ctx, begin_time, end_time);
     JSON_Object *root_object;
     JSON_Value *root_value;
@@ -126,7 +128,7 @@ void onFileChange(struct inotify_event *p_event) {
     const char *vid = json_object_dotget_string(root_object, "result.uid");
     // send video uuid
     if (vid != NULL && strlen(vid) > 0) {
-        azc_send_video_id(ctx, t, vid);
+        azc_send_video_id(ctx, vid, begin_time, end_time);
     }
     json_value_free(root_value);
 }

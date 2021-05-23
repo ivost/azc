@@ -273,15 +273,29 @@ int azc_send_result(struct objdet_result * res) {
     messagecount = messagecount + 1;
     return rc;
 }
-
-int azc_send_video_id(int ctx_id, long trig_time, const char * uuid) {
+/*
+type Clip struct {
+	Id        int64    `db:"id" json:"id"`
+	Vid       string   `db:"vid" json:"vid"`
+	CtxId     int16    `db:"ctx_id" json:"cid"`
+	BeginTime int64    `db:"start_time" json:"s"`
+	EndTime   int64    `db:"end_time" json:"t"`
+	Width     int16    `db:"width" json:"w"`
+	Height    int16    `db:"height" json:"h"`
+	Duration  int16    `db:"duration" json:"d"`
+	Events    []string `db:"events" json:"events"`
+} */
+int azc_send_video_id(int ctx_id, const char * uuid, long begin_time, long end_time) {
     int rc = 0;
-    printf("azc_send_video_id - ctx %d, trig time %ld, video uuid %s\n", ctx_id, trig_time, uuid);
+    printf("azc_send_video_id - ctx %d, begin %ld, end %ld, video uid %s\n",
+           ctx_id, begin_time, end_time, uuid);
 
     JSON_Value *rootv = json_value_init_object();
     JSON_Object *root = json_value_get_object(rootv);
     json_object_set_number(root, "cid", ctx_id);
-    json_object_set_number(root, "t", trig_time);
+    json_object_set_number(root, "s", begin_time);
+    json_object_set_number(root, "t", end_time);
+    json_object_set_number(root, "d", end_time - begin_time);
     json_object_set_string(root, "vid", uuid);
     char * msg = json_serialize_to_string(rootv);
     //printf("=== Sending video_id to IoTHub\nMessage: %s\n",  msg);

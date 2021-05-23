@@ -75,7 +75,7 @@ void *msgRecvThread(void *ptr) {
         set_trigger(ctx, now);
         rc = azc_send_result(pr);
         (void) rc;
-        //printf("<<<<< now %ld, ctx %d, num bb %d\n", now, ctx, pr->numbb);
+        printf("<<<<< now %ld, ctx %d, num bb %d\n", now, ctx, pr->numbb);
         ThreadAPI_Sleep(10);
     }
     azc_reset();

@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
 */
     pthread_t thread1;
     pthread_t thread2;
-    printf("azc v.1.5.22.2 enter\n");
+    printf("azc v.1.5.22.3 enter\n");
     pthread_create(&thread1, NULL, msgRecvThread, NULL);
     pthread_create(&thread2, NULL, watchThread, NULL);
     pthread_join(thread1, NULL);

@@ -56,7 +56,7 @@ int azc_init();
 
 int azc_send_context(struct cam_context * ctx);
 int azc_send_result(struct objdet_result * res);
-int azc_send_video_id(int ctx_id, long trig_time, const char * uuid);
+int azc_send_video_id(int ctx_id, const char * uuid, long begin_time, long end_time);
 
 int azc_reset();
 
