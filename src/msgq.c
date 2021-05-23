@@ -27,14 +27,14 @@ mqd_t msg_init() {
     ma.mq_curmsgs = 0;              // number of messages currently in queue
 
     mq_unlink(QUEUE_NAME);
-    printf("Creating %s\n", QUEUE_NAME);
+    //printf("Creating %s\n", QUEUE_NAME);
     // Create the message queue with some default settings.
     mq = mq_open(QUEUE_NAME, O_RDWR | O_CREAT, 0700, &ma);
     if (mq < 0) {
         printf("error creating queue %d\n", mq);
         return -1;
     }
-    printf("mq %d\n", mq);
+    //printf("mq %d\n", mq);
     return mq;
 }
 
@@ -75,7 +75,7 @@ void *msgRecvThread(void *ptr) {
         set_trigger(ctx, now);
         rc = azc_send_result(pr);
         (void) rc;
-        printf("<<<<< now %ld, ctx %d, num bb %d\n", now, ctx, pr->numbb);
+        //printf("<<<<< now %ld, ctx %d, num bb %d\n", now, ctx, pr->numbb);
         ThreadAPI_Sleep(10);
     }
     azc_reset();

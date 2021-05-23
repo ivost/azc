@@ -66,9 +66,8 @@ int azc_init() {
     // Setting Log Tracing.
     // Log tracing is supported in MQTT and AMQP. Not HTTP.
 
-    //bool traceOn = false;
-    bool traceOn = true;
-
+    bool traceOn = false;
+    //bool traceOn = true;
     (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_LOG_TRACE, &traceOn);
     // Setting the frequency of DoWork calls by the underlying process thread.
     // The value ms_delay is a delay between DoWork calls, in milliseconds.
@@ -83,8 +82,8 @@ int azc_init() {
     //Setting the auto URL Encoder (recommended for MQTT). Please use this option unless
     //you are URL Encoding inputs yourself.
     //ONLY valid for use with MQTT
-    bool urlEncodeOn = true;
-    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_AUTO_URL_ENCODE_DECODE, &urlEncodeOn);
+    // bool urlEncodeOn = true;
+    // (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_AUTO_URL_ENCODE_DECODE, &urlEncodeOn);
     return 0;
 }
 
@@ -205,9 +204,9 @@ char * azc_serialize_result(struct objdet_result * res) {
     json_object_set_number(root, "ctx", res->ctx_id);
     json_object_set_number(root, "n", res->numbb);
 
-    JSON_Value *arr = json_value_init_array();
-    json_object_set_value(root, "bb", arr);
-    JSON_Array * bbs_arr = json_value_get_array(arr);
+    JSON_Value *barr = json_value_init_array();
+    json_object_set_value(root, "bb", barr);
+    JSON_Array * bbs_arr = json_value_get_array(barr);
 
     struct bbox * pb = res->bb;
     for (int idx = 0; idx < res->numbb; idx++) {

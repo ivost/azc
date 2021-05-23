@@ -35,7 +35,7 @@ void set_trigger(int context, long t) {
     pthread_mutex_lock(&trigger_lock);
     if (triggers[context] == 0) {
         triggers[context] = t;
-        printf("set trigger %ld, ctx %d\n", triggers[context], context);
+        //printf("set trigger %ld, ctx %d\n", triggers[context], context);
     }
     pthread_mutex_unlock(&trigger_lock);
 }
@@ -59,42 +59,62 @@ int is_digit(char c) {
     return 0;
 }
 
-// returns context 1:max
-int get_context(const char *name) {
-    int res = -1;
-    char ctx[MAX_FILE_NAME+1];
+// file name is A01-DDD-NNN.mp4
+// e.g. A01-030-004.mp4
+// where 01 is context, DDD - file duration in sec, NNN - seq.no
+// return 0 on success, 1 on error
+int parse_name(const char *name, int * p_ctx, int * p_duration) {
+    *p_ctx = 0;
+    *p_duration = 0;
+    char tmp[MAX_FILE_NAME+1];
     char *p, *q;
     for (p = (char *) name; *p != 0 && !is_digit(*p); p++);
     if (*p == 0) {
-        return res;
+        return 1;
     }
     // p -> 1st digit
     for (q = p+1; *q != 0 && is_digit(*q); q++);
     // q -> after last digit
+    // A01-030-004.mp4
+    //  --q
     int len = q-p;
-    strncpy(ctx, p, len);
-    ctx[len] = 0;
-    sscanf(ctx, "%d", &res);
-    return res;
+    strncpy(tmp, p, len);
+    tmp[len] = 0;
+    sscanf(tmp, "%d", p_ctx);
+    // same for duration
+    // A01-030-004.mp4
+    //     ---q
+    p = q+1;
+    for (q = p; *q != 0 && is_digit(*q); q++);
+    len = q-p;
+    strncpy(tmp, p, len);
+    tmp[len] = 0;
+    sscanf(tmp, "%d", p_duration);
+    return 0;
 }
 
 void onFileChange(struct inotify_event *p_event) {
+    int ctx;
+    int duration;
+    long begin_time;
+    // assume end_time = current time = closing time
+    long end_time = time(NULL);
+
     if ((p_event->mask & IN_CLOSE_WRITE) == 0) {
         return;
     }
     const char *name = (const char *) p_event->name;
-    int ctx = get_context(name);
+    // use file naming to deduct context and duration
+    parse_name(name, &ctx, &duration);
     // ignore if no triggers
     long t = get_trigger(ctx);
     if (t == 0) {
         return;
     }
-    // set end_time = current time = closing time
-    long now = time(NULL);
-    printf("now %ld, t %ld, ctx %d\n", now, t, ctx);
     clear_trigger(ctx);
     // todo: need some queue struct and another upload thread
-    char *json = upload_file(name, ctx, now);
+    begin_time = end_time - duration;
+    char *json = upload_file(name, ctx, begin_time, end_time);
     JSON_Object *root_object;
     JSON_Value *root_value;
     root_value = json_parse_string(json);
@@ -106,7 +126,6 @@ void onFileChange(struct inotify_event *p_event) {
     const char *vid = json_object_dotget_string(root_object, "result.uid");
     // send video uuid
     if (vid != NULL && strlen(vid) > 0) {
-        //printf("VIDEO UUID %s\n", vid);
         azc_send_video_id(ctx, t, vid);
     }
     json_value_free(root_value);
@@ -136,11 +155,11 @@ void *watchThread(void *ptr) {
     inotify_rm_watch( fd, wd );
 }
 
-char * upload_file(const char *name, int ctx, long end_time) {
+char * upload_file(const char *name, int ctx, long begin_time, long end_time) {
     FILE * fp = NULL;
     char * json = NULL;
 
-    printf("upload file %s, ctx %d, end time %ld\n", name, ctx, end_time);
+    printf("upload file %s, ctx %d, begin time %ld, end time %ld\n", name, ctx, begin_time, end_time);
     char * file_name = build_file_name(name, ctx, end_time);
     char * cmd = build_command(file_name);
     //printf("====== upload command %s\n", cmd);
