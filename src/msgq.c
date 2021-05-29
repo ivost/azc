@@ -10,6 +10,7 @@
 #include <time.h>
 
 #include "azc.h"
+
 #include "azure_c_shared_utility/threadapi.h"
 #include "msgq.h"
 #include "watch.h"

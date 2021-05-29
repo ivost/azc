@@ -49,17 +49,20 @@ struct objdet_result {
     uint32_t ctx_id;
     uint16_t numbb;
     uint16_t res1;
-    BB       bb[MAX_BB];
+    BB bb[MAX_BB];
 };
 
 int azc_init();
 
-int azc_send_context(struct cam_context * ctx);
-int azc_send_result(struct objdet_result * res);
-int azc_send_video_id(int ctx_id, const char * uuid, long begin_time, long end_time);
+int azc_send_context(struct cam_context *ctx);
+
+int azc_send_result(struct objdet_result *res);
+
+int azc_send_video_id(int ctx_id, const char *uuid, long begin_time, long end_time);
+
+int azc_upload(void);
 
 int azc_reset();
-
 
 #ifdef __cplusplus
 }

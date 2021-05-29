@@ -5,15 +5,16 @@
 #include <pthread.h>
 #include <parson.h>
 
+#include "azc.h"
 #include "msgq.h"
 #include "watch.h"
 
 int parse_name(const char *name, int * p_ctx, int * p_duration, int * w, int *h);
 void test();
 
-int upload(void);
-
 int main(int argc, char *argv[]) {
+
+    azc_upload();
 /*
     test();
     pthread_t thread1;
@@ -24,16 +25,17 @@ int main(int argc, char *argv[]) {
     pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);
 */
-    upload();
 
     return 0;
 }
 
 void test() {
-    const char name[] = "001_060-1920x1056-000.mp4";
-    int ctx, dur, width, height;
-    parse_name(name, &ctx, &dur, &width, &height);
-    printf("name %s, ctx %d, dur %d, width %d, height %d\n", name, ctx, dur, width, height);
+
+//    const char name[] = "001_060-1920x1056-000.mp4";
+//    int ctx, dur, width, height;
+//    parse_name(name, &ctx, &dur, &width, &height);
+//    printf("name %s, ctx %d, dur %d, width %d, height %d\n", name, ctx, dur, width, height);
+
 //    JSON_Object * root_object;
 //    JSON_Value  * root_value;
 //    const char * json = "{\"result\": {\"uid\": \"f6cfa8416d2e4132b8d8d85914df51c6\"}}";

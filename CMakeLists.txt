@@ -6,7 +6,6 @@ link_directories(./lib)
 
 add_executable(azc
 		src/azc.c
-		src/azblob.c
 		src/msgq.c
 		src/watch.c
 		src/Uploader.cpp

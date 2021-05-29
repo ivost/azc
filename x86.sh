@@ -13,14 +13,13 @@ gcc azc.o certs.o -shared -o libazc.so \
    -l aziotsharedutil \
    -l prov_auth_client \
    -l hsm_security_client \
-   -l uamqp \
    -l uhttp \
+   -l uamqp \
    -l umqtt \
    -l parson \
    -l uuid
 
 gcc src/main.c src/watch.c src/msgq.c \
-    src/azblob.c \
  -o azcX86 \
  -I include -I src -I deps/umock_c/inc  \
  -L . \
@@ -31,7 +30,7 @@ gcc src/main.c src/watch.c src/msgq.c \
 #    src/Uploader.cpp \
 # -l stdc++
 
-# file azcX86
+file azcX86
 
-# LD_LIBRARY_PATH=. ./azcX86
+LD_LIBRARY_PATH=. ./azcX86
  
