@@ -369,30 +369,30 @@ getDataCallback(IOTHUB_CLIENT_FILE_UPLOAD_RESULT result, unsigned char const **d
 
 
 int azc_upload(void) {
-    IOTHUB_DEVICE_CLIENT_HANDLE handle;
+    IOTHUB_DEVICE_CLIENT_LL_HANDLE handle;
 
     (void) IoTHub_Init();
     (void) printf("Starting the IoTHub client sample upload to blob with multiple blocks...\r\n");
 
-    handle = IoTHubDeviceClient_CreateFromConnectionString(connectionString, HTTP_Protocol);
+    handle = IoTHubDeviceClient_LL_CreateFromConnectionString(connectionString, HTTP_Protocol);
     if (handle == NULL) {
         (void) printf("Failure creating IotHub device. Hint: Check your connection string.\r\n");
     } else {
         // Setting the Trusted Certificate. This is only necessary on systems without
         // built in certificate stores.
-        IoTHubDeviceClient_SetOption(handle, OPTION_TRUSTED_CERT, certificates);
+        IoTHubDeviceClient_LL_SetOption(handle, OPTION_TRUSTED_CERT, certificates);
 
-//        if (IoTHubDeviceClient_UploadMultipleBlocksToBlob(device_handle, "subdir/hello_world_mb.txt",
-//                                                             getDataCallback, NULL) != IOTHUB_CLIENT_OK) {
-//            (void) printf("hello world failed to upload\n");
-//        } else {
-//            (void) printf("hello world has been created\n");
-//        }
+        if (IoTHubDeviceClient_LL_UploadMultipleBlocksToBlob(handle, "subdir/hello_world_mb.txt",
+                                                             getDataCallback, NULL) != IOTHUB_CLIENT_OK) {
+            (void) printf("hello world failed to upload\n");
+        } else {
+            (void) printf("hello world has been created\n");
+        }
 
     }
 
     // Clean up the iothub sdk handle
-    IoTHubDeviceClient_Destroy(handle);
+    IoTHubDeviceClient_LL_Destroy(handle);
     IoTHub_Deinit();
     return 0;
 }
