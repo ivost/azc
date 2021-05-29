@@ -6,6 +6,7 @@
 #define GST_AZC_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,9 +61,9 @@ int azc_send_result(struct objdet_result *res);
 
 int azc_send_video_id(int ctx_id, const char *uuid, long begin_time, long end_time);
 
-int azc_upload(void);
-
 int azc_reset();
+
+int azc_upload(const char *file_name, const char *blob_path);
 
 #ifdef __cplusplus
 }

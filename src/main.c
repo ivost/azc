@@ -9,27 +9,40 @@
 #include "msgq.h"
 #include "watch.h"
 
-int parse_name(const char *name, int * p_ctx, int * p_duration, int * w, int *h);
+int parse_name(const char *name, int *p_ctx, int *p_duration, int *w, int *h);
+
 void test();
 
+int testing = 0;
+
 int main(int argc, char *argv[]) {
-
-    azc_upload();
-/*
-    test();
-    pthread_t thread1;
-    pthread_t thread2;
-    printf("azc v.1.5.26.0 enter\n");
-    pthread_create(&thread1, NULL, msgRecvThread, NULL);
-    pthread_create(&thread2, NULL, watchThread, NULL);
-    pthread_join(thread1, NULL);
-    pthread_join(thread2, NULL);
-*/
-
+    if (testing) {
+        test();
+    } else {
+        pthread_t thread1;
+        pthread_t thread2;
+        printf("azc v.1.5.29.0 enter\n");
+        pthread_create(&thread1, NULL, msgRecvThread, NULL);
+        pthread_create(&thread2, NULL, watchThread, NULL);
+        pthread_join(thread1, NULL);
+        pthread_join(thread2, NULL);
+    }
     return 0;
 }
 
+
 void test() {
+    int rc;
+    //const char * file_name = "../Videos/A01-001.mp4";
+    const char *file_name = "../Pictures/B02-001-18700.jpg";
+    //const char blob_name [] = "A01-001-123.mp4";
+    const char *blob_name = "B02-001-18700-123.jpg";
+
+    if (azc_init() == 0) {
+        rc = azc_upload(file_name, blob_name);
+        printf("rc after upload %d\n", rc);
+        azc_reset();
+    }
 
 //    const char name[] = "001_060-1920x1056-000.mp4";
 //    int ctx, dur, width, height;

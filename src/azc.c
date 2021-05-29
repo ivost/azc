@@ -9,7 +9,7 @@
 #include "azure_c_shared_utility/crt_abstractions.h"
 #include "azure_c_shared_utility/shared_util_options.h"
 #include "azure_c_shared_utility/tickcounter.h"
-#include "iothubtransportmqtt.h"
+//#include "iothubtransportmqtt.h"
 #include "iothubtransportamqp.h"
 #include "parson.h"
 #include "certs.h"
@@ -30,31 +30,39 @@ static const char *connectionString = "HostName=ivohub2.azure-devices.net;Device
 //static const char *connectionString = "HostName=ivohub2.azure-devices.net;DeviceId=C610-2;SharedAccessKey=6/4didae/YnSXbkuZOCRr+kNikypGV6Jd7B6hm8cNQU=";
 
 static size_t g_message_count_send_confirmations = 0;
-
-//static IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol =
-//        AMQP_Protocol;
-//        MQTT_Protocol;
-
 static IOTHUB_MESSAGE_HANDLE message_handle;
-static IOTHUB_DEVICE_CLIENT_HANDLE device_handle;
 
+static IOTHUB_DEVICE_CLIENT_HANDLE device_handle;
+static IOTHUB_DEVICE_CLIENT_LL_HANDLE device_ll_handle;
 
 static int messagecount = 0;
 
 // init - returns 0 on success, else error
 int azc_init() {
+
+    if (device_ll_handle && device_handle) {
+        // already initialized
+        return 0;
+    }
     int rc = IoTHub_Init();
     if (rc) {
+        printf("IoTHub_Init error\r\n");
         return rc;
     }
-    //printf("bbox_size %lu, sizeof objdet_result %lu\n", sizeof(BB), sizeof(struct objdet_result));
-    //printf("Creating IoTHub handle\r\n");
-    // Create the iothub handle here
+
+    device_ll_handle = IoTHubDeviceClient_LL_CreateFromConnectionString(connectionString, HTTP_Protocol);
+    if (device_ll_handle == NULL) {
+        printf("LL connection error\r\n");
+        return 1;
+    }
+    IoTHubDeviceClient_LL_SetOption(device_ll_handle, OPTION_TRUSTED_CERT, certificates);
+
     device_handle = IoTHubDeviceClient_CreateFromConnectionString(connectionString, AMQP_Protocol);
     if (device_handle == NULL) {
         printf("Failure creating IotHub device. Hint: Check your connection string.\r\n");
-        return 1;
+        return 2;
     }
+
     // Setting message callback to get C2D messages
     (void) IoTHubDeviceClient_SetMessageCallback(device_handle, receive_msg_callback, NULL);
     // Setting method callback to handle a SetTelemetryInterval method to control
@@ -71,22 +79,38 @@ int azc_init() {
 
     bool traceOn = false;
     //bool traceOn = true;
-    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_LOG_TRACE, &traceOn);
+    IoTHubDeviceClient_SetOption(device_handle, OPTION_LOG_TRACE, &traceOn);
     // Setting the frequency of DoWork calls by the underlying process thread.
     // The value ms_delay is a delay between DoWork calls, in milliseconds.
     // ms_delay can only be between 1 and 100 milliseconds.
     // Without the SetOption, the delay defaults to 1 ms.
     tickcounter_ms_t ms_delay = 10;
-    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_DO_WORK_FREQUENCY_IN_MS, &ms_delay);
+    IoTHubDeviceClient_SetOption(device_handle, OPTION_DO_WORK_FREQUENCY_IN_MS, &ms_delay);
     // Setting the Trusted Certificate. This is only necessary on systems without
     // built in certificate stores.
-    (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_TRUSTED_CERT, certificates);
+    IoTHubDeviceClient_SetOption(device_handle, OPTION_TRUSTED_CERT, certificates);
 
     //Setting the auto URL Encoder (recommended for MQTT). Please use this option unless
     //you are URL Encoding inputs yourself.
     //ONLY valid for use with MQTT
     // bool urlEncodeOn = true;
     // (void) IoTHubDeviceClient_SetOption(device_handle, OPTION_AUTO_URL_ENCODE_DECODE, &urlEncodeOn);
+    return 0;
+}
+
+int azc_reset() {
+    printf("azc_reset");
+    // Clean up the iothub sdk handle
+    if (device_handle) {
+        IoTHubDeviceClient_Destroy(device_handle);
+        device_handle = NULL;
+    }
+    if (device_ll_handle) {
+        IoTHubDeviceClient_LL_Destroy(device_ll_handle);
+        device_ll_handle = NULL;
+    }
+    // Free all the sdk subsystem
+    IoTHub_Deinit();
     return 0;
 }
 
@@ -303,98 +327,64 @@ int azc_send_video_id(int ctx_id, const char * uuid, long begin_time, long end_t
     return rc;
 }
 
+static const int upload_buffer_size = 1024000;
+static char *upload_buffer;
+static int block_count = 0;
+static size_t total_bytes = 0;
+
+static IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_RESULT
+getDataCallback(IOTHUB_CLIENT_FILE_UPLOAD_RESULT result, unsigned char const **data, size_t *size, void *context) {
+    FILE *fp = (FILE *) context;
+    if (result != FILE_UPLOAD_OK) {
+        printf("*** Received error %s\n", MU_ENUM_TO_STRING(IOTHUB_CLIENT_FILE_UPLOAD_RESULT, result));
+        return IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_ABORT;
+    }
+    // done?
+    if (data == NULL || size == NULL) {
+        printf("Uploaded, total_bytes: %ld\n", total_bytes);
+        return IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_OK;
+    }
+    // read block of data
+    size_t len = fread(upload_buffer, 1, upload_buffer_size, fp);
+    *data = NULL;
+    *size = len;
+    total_bytes += len;
+    if (len > 0) {
+        block_count++;
+        //printf("Uploading  block %d - %ld bytes\n", block_count, len);
+        *data = (const unsigned char *) upload_buffer;
+    }
+    return IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_OK;
+}
+
+// MU_ENUM_TO_STRING(IOTHUB_CLIENT_FILE_UPLOAD_RESULT, result)
+
+int azc_upload(const char *file_name, const char *blob_path) {
+    if (device_ll_handle == NULL) {
+        printf("azc not initialized\n");
+        return 1;
+    }
+    FILE *fp = fopen(file_name, "rb");
+    if (fp == NULL) {
+        printf("azc_upload - File %s not found\n", file_name);
+        return 2;
+    }
+    upload_buffer = (char *) malloc(upload_buffer_size);
+    if (upload_buffer == NULL) {
+        fclose(fp);
+        printf("malloc %d failed\n", upload_buffer_size);
+        return 3;
+    }
+    printf("Uploading %s ...\n", file_name);
+    total_bytes = 0;
+    int rc = IoTHubDeviceClient_LL_UploadMultipleBlocksToBlob(device_ll_handle, blob_path, getDataCallback, fp);
+    printf("upload rc %d\n", rc);
+    free(upload_buffer);
+    fclose(fp);
+    return rc;
+}
+
 // Set Message properties
 //    (void) IoTHubMessage_SetMessageId(message_handle, "MSG_ID");
 //    (void) IoTHubMessage_SetCorrelationId(message_handle, "CORE_ID");
 //ThreadAPI_Sleep(g_interval);
-
-int azc_reset() {
-    printf("azc_reset");
-    // Clean up the iothub sdk handle
-    IoTHubDeviceClient_Destroy(device_handle);
-    // Free all the sdk subsystem
-    IoTHub_Deinit();
-    return 0;
-}
-
-static const char *data_to_upload_format = "Hello World from IoTHubDeviceClient_UploadToBlob block: %d\n";
-static char data_to_upload[128];
-static int block_count = 0;
-
-//static IOTHUB_CLIENT_TRANSPORT_PROVIDER protocol =
-//        HTTP_Protocol;
-
-static IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_RESULT
-getDataCallback(IOTHUB_CLIENT_FILE_UPLOAD_RESULT result, unsigned char const **data, size_t *size, void *context) {
-    (void) context;
-    if (result == FILE_UPLOAD_OK) {
-        if (data != NULL && size != NULL) {
-            // "block_count" is used to simulate reading chunks from a larger data content, like a large file.
-            // Note that the IoT SDK caller does NOT free(*data), as a typical use case the buffer returned
-            // to the IoT layer may be part of a larger buffer that this callback is chunking up for network sends.
-
-            if (block_count < 100) {
-                int len = snprintf(data_to_upload, sizeof(data_to_upload), data_to_upload_format, block_count);
-                if (len < 0 || len >= sizeof(data_to_upload)) {
-                    return IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_ABORT;
-                }
-
-                *data = (const unsigned char *) data_to_upload;
-                *size = strlen(data_to_upload);
-                block_count++;
-            } else {
-                // This simulates reaching the end of the file. At this point all the data content has been uploaded to blob.
-                // Setting data to NULL and/or passing size as zero indicates the upload is completed.
-
-                *data = NULL;
-                *size = 0;
-
-                (void) printf("Indicating upload is complete (%d blocks uploaded)\r\n", block_count);
-            }
-        } else {
-            // The last call to this callback is to indicate the result of uploading the previous data block provided.
-            // Note: In this last call, data and size pointers are NULL.
-
-            (void) printf("Last call to getDataCallback (result for %dth block uploaded: %s)\r\n", block_count,
-                          MU_ENUM_TO_STRING(IOTHUB_CLIENT_FILE_UPLOAD_RESULT, result));
-        }
-    } else {
-        (void) printf("Received unexpected result %s\r\n", MU_ENUM_TO_STRING(IOTHUB_CLIENT_FILE_UPLOAD_RESULT, result));
-    }
-
-    // This callback returns IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_OK to indicate that the upload shall continue.
-    // To abort the upload, it should return IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_ABORT
-    return IOTHUB_CLIENT_FILE_UPLOAD_GET_DATA_OK;
-}
-
-
-int azc_upload(void) {
-    IOTHUB_DEVICE_CLIENT_LL_HANDLE handle;
-
-    (void) IoTHub_Init();
-    (void) printf("Starting the IoTHub client sample upload to blob with multiple blocks...\r\n");
-
-    handle = IoTHubDeviceClient_LL_CreateFromConnectionString(connectionString, HTTP_Protocol);
-    if (handle == NULL) {
-        (void) printf("Failure creating IotHub device. Hint: Check your connection string.\r\n");
-    } else {
-        // Setting the Trusted Certificate. This is only necessary on systems without
-        // built in certificate stores.
-        IoTHubDeviceClient_LL_SetOption(handle, OPTION_TRUSTED_CERT, certificates);
-
-        if (IoTHubDeviceClient_LL_UploadMultipleBlocksToBlob(handle, "subdir/hello_world_mb.txt",
-                                                             getDataCallback, NULL) != IOTHUB_CLIENT_OK) {
-            (void) printf("hello world failed to upload\n");
-        } else {
-            (void) printf("hello world has been created\n");
-        }
-
-    }
-
-    // Clean up the iothub sdk handle
-    IoTHubDeviceClient_LL_Destroy(handle);
-    IoTHub_Deinit();
-    return 0;
-}
-
-
