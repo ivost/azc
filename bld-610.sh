@@ -12,11 +12,13 @@ $CC azc.o certs.o -shared -o libazc.so \
    -l iothub_client \
    -l iothub_client_amqp_transport \
    -l iothub_client_amqp_ws_transport \
+   -l iothub_client_http_transport \
    -l iothub_client_mqtt_transport \
    -l aziotsharedutil \
+   -l uhttp \
    -l uamqp \
    -l umqtt \
-   -l parson 
+   -l parson
 
    # -l iothub_client_http_transport \
    # -l uhttp \
@@ -24,14 +26,13 @@ $CC azc.o certs.o -shared -o libazc.so \
    # -l prov_auth_client \
    # -l hsm_security_client \
 
-$CC src/main.c src/watch.c src/msgq.c src/Uploader.cpp \
+$CC src/main.c src/watch.c src/msgq.c \
   -o azc610 \
   -I include -I src -I deps/umock_c/inc  \
   -L . \
   -L lib \
   -Wl,-rpath-link=lib \
   -l azc \
-  -l stdc++ \
   -l crypto -l ssl -l curl -l pthread \
   -l m -l rt -l uuid
 

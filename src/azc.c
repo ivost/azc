@@ -55,7 +55,8 @@ int azc_init() {
         printf("LL connection error\r\n");
         return 1;
     }
-    IoTHubDeviceClient_LL_SetOption(device_ll_handle, OPTION_TRUSTED_CERT, certificates);
+
+    //IoTHubDeviceClient_LL_SetOption(device_ll_handle, OPTION_TRUSTED_CERT, certificates);
 
     device_handle = IoTHubDeviceClient_CreateFromConnectionString(connectionString, AMQP_Protocol);
     if (device_handle == NULL) {
@@ -88,7 +89,7 @@ int azc_init() {
     IoTHubDeviceClient_SetOption(device_handle, OPTION_DO_WORK_FREQUENCY_IN_MS, &ms_delay);
     // Setting the Trusted Certificate. This is only necessary on systems without
     // built in certificate stores.
-    IoTHubDeviceClient_SetOption(device_handle, OPTION_TRUSTED_CERT, certificates);
+    //IoTHubDeviceClient_SetOption(device_handle, OPTION_TRUSTED_CERT, certificates);
 
     //Setting the auto URL Encoder (recommended for MQTT). Please use this option unless
     //you are URL Encoding inputs yourself.
@@ -99,7 +100,7 @@ int azc_init() {
 }
 
 int azc_reset() {
-    printf("azc_reset");
+    printf("azc_reset\n");
     // Clean up the iothub sdk handle
     if (device_handle) {
         IoTHubDeviceClient_Destroy(device_handle);
@@ -361,14 +362,14 @@ getDataCallback(IOTHUB_CLIENT_FILE_UPLOAD_RESULT result, unsigned char const **d
 
 // MU_ENUM_TO_STRING(IOTHUB_CLIENT_FILE_UPLOAD_RESULT, result)
 
-char *azc_upload(const char *file_name, const char *blob_path) {
+char *azc_upload(const char *file_path, const char *blob_path) {
     if (device_ll_handle == NULL) {
         printf("azc not initialized\n");
         return NULL;
     }
-    FILE *fp = fopen(file_name, "rb");
+    FILE *fp = fopen(file_path, "rb");
     if (fp == NULL) {
-        printf("azc_upload - File %s not found\n", file_name);
+        printf("azc_upload - File %s not found\n", file_path);
         return NULL;
     }
     upload_buffer = (char *) malloc(upload_buffer_size);
@@ -377,7 +378,7 @@ char *azc_upload(const char *file_name, const char *blob_path) {
         printf("malloc %d failed\n", upload_buffer_size);
         return NULL;
     }
-    printf("Uploading %s ...\n", file_name);
+    printf("Uploading %s ...\n", file_path);
     total_bytes = 0;
     int rc = IoTHubDeviceClient_LL_UploadMultipleBlocksToBlob(device_ll_handle, blob_path, getDataCallback, fp);
     printf("upload rc %d\n", rc);

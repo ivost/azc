@@ -14,11 +14,11 @@ int parse_name(const char *name, int *p_ctx, int *p_duration, int *w, int *h);
 
 void test();
 
-int testing = 1;
+int testing = 0;
 
 int main(int argc, char *argv[]) {
 
-    printf("azc v.1.5.29.0, epoch sec: %d\n", now_sec_real());
+    printf("azc v.1.5.29.4, epoch %d sec\n", now_sec_real());
     printf("real time %ld ms, monotonic time %ld ms\n", now_ms_real(), now_ms_mono());
 
     if (testing) {
@@ -38,7 +38,8 @@ int main(int argc, char *argv[]) {
 void test() {
     int rc;
     //const char * file_name = "../Videos/A01-001.mp4";
-    const char *file_name = "../Pictures/B02-001-18700.jpg";
+    //const char *file_name = "../Pictures/B02-001-18700.jpg";
+    const char *file_name = "/mnt/sdcard/video/002_060-2048x1536-001.mp4";
     //const char blob_name [] = "A01-001-123.mp4";
     //const char *blob_name = "B02-001-18700-123.jpg";
 

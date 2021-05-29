@@ -161,7 +161,7 @@ void onFileChange(struct inotify_event *p_event) {
     clear_trigger(ctx);
     duration *= 1000;   // in ms
     begin_time = end_time - duration;
-    printf("ctx %d, trigger %ld, begin %ld, end %ld\n", ctx, t, begin_time, end_time);
+    printf("name %s, ctx %d, trigger %ld, begin %ld, end %ld\n", name, ctx, t, begin_time, end_time);
     char *json = upload_file_blob(name);
     JSON_Object *root_object;
     JSON_Value *root_value;
@@ -219,6 +219,7 @@ char *upload_file_blob(const char *name) {
     pthread_mutex_lock(&upload_lock);
     char *file_name = build_file_name(name);
     char *blob_name = build_blob_name(name);
+    printf("file_name %s\n", file_name);
     char *p = azc_upload(file_name, blob_name);
     char *q = strdup(p);
     printf("upload result %s\n", q);
@@ -260,7 +261,9 @@ char *upload_file_curl(const char *name) {
 }
 
 char *build_file_name(const char *name) {
-    return strdup(name);
+    char fname[300];
+    sprintf(fname, "%s%s", VIDEO_DIR, name);
+    return strdup(fname);
 }
 
 char *build_blob_name(const char *name) {
