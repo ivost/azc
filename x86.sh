@@ -19,16 +19,19 @@ gcc azc.o certs.o -shared -o libazc.so \
    -l parson \
    -l uuid
 
-#   -l hogweed -l gnutls \
-
-gcc src/main.c src/watch.c src/msgq.c src/azblob.c src/Uploader.cpp \
+gcc src/main.c src/watch.c src/msgq.c \
+    src/azblob.c \
  -o azcX86 \
  -I include -I src -I deps/umock_c/inc  \
  -L . \
  -l azc \
- -l crypto -l ssl -l curl -l pthread -l m -l rt -l stdc++
+ -l crypto -l ssl -l curl -l pthread \
+ -l m -l rt
 
- file azcX86
+#    src/Uploader.cpp \
+# -l stdc++
 
- LD_LIBRARY_PATH=. ./azcX86
+# file azcX86
+
+# LD_LIBRARY_PATH=. ./azcX86
  
