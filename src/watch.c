@@ -24,9 +24,10 @@
 #define EVENT_BUF_LEN ( 1024 * ( EVENT_SIZE + 16 ) )
 
 pthread_mutex_t trigger_lock = PTHREAD_MUTEX_INITIALIZER;;
+pthread_mutex_t upload_lock = PTHREAD_MUTEX_INITIALIZER;;
 
 // todo: token and config
-const char * CURL= "curl --silent -X POST 'https://api.cloudflare.com/client/v4/accounts/22b892bb1c1f18e5abf75e8b3cccf34b/stream' -H 'X-Auth-Email: ivostoy@gmail.com' -H 'X-Auth-Key: 5aac03bca5f786b2cac6fd42b58a7603869fe' --form 'file=@/data/video/%s'";
+const char *CURL = "curl --silent -X POST 'https://api.cloudflare.com/client/v4/accounts/22b892bb1c1f18e5abf75e8b3cccf34b/stream' -H 'X-Auth-Email: ivostoy@gmail.com' -H 'X-Auth-Key: 5aac03bca5f786b2cac6fd42b58a7603869fe' --form 'file=@/data/video/%s'";
 
 long triggers[MAX_CONTEXT];
 
@@ -117,19 +118,40 @@ int parse_name(const char *name, int * p_ctx, int * p_duration, int *p_width, in
     return 0;
 }
 
+int64_t now_ms_mono() {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec * 1000 + t.tv_nsec / 1000000;
+}
+
+int64_t now_ms_real() {
+    struct timespec t;
+    clock_gettime(CLOCK_REALTIME, &t);
+    return t.tv_sec * 1000 + t.tv_nsec / 1000000;
+}
+
+int32_t now_sec_real() {
+    struct timespec t;
+    clock_gettime(CLOCK_REALTIME, &t);
+    return t.tv_sec;
+}
+
 void onFileChange(struct inotify_event *p_event) {
     int ctx;
     int duration;
     int width, height;
     long begin_time;
     // assume end_time = current time = closing time
-    long end_time = time(NULL);
+    long end_time = now_ms_mono();
+    long end_time2 = now_ms_real();
 
     if ((p_event->mask & IN_CLOSE_WRITE) == 0) {
         return;
     }
     const char *name = (const char *) p_event->name;
     // use file naming to deduct context and duration
+    // duration is in sec
+    // how to get actual duration?
     parse_name(name, &ctx, &duration, &width, &height);
     // ignore if no triggers
     long t = get_trigger(ctx);
@@ -137,22 +159,33 @@ void onFileChange(struct inotify_event *p_event) {
         return;
     }
     clear_trigger(ctx);
-    // todo: need some queue struct and another upload thread
+    duration *= 1000;   // in ms
     begin_time = end_time - duration;
     printf("ctx %d, trigger %ld, begin %ld, end %ld\n", ctx, t, begin_time, end_time);
-    char *json = upload_file(name, ctx, begin_time, end_time);
+    char *json = upload_file_blob(name);
     JSON_Object *root_object;
     JSON_Value *root_value;
     root_value = json_parse_string(json);
     if (root_value == NULL) {
         printf("JSON PARSE ERROR %s\n", json);
+        free(json);
         return;
     }
+    free(json);
     root_object = json_value_get_object(root_value);
-    const char *vid = json_object_dotget_string(root_object, "result.uid");
-    // send video uuid
+    const char *vid = json_object_dotget_string(root_object, "result.path");
+
+    struct video_info v;
+
+    // send video path
     if (vid != NULL && strlen(vid) > 0) {
-        azc_send_video_id(ctx, vid, begin_time, end_time);
+        v.height = height;
+        v.width = width;
+        v.ctx_id = ctx;
+        v.begin_time = begin_time;
+        v.duration = duration;
+        strcpy(v.path, vid);
+        azc_send_video_info(&v);
     }
     json_value_free(root_value);
 }
@@ -178,21 +211,34 @@ void *watchThread(void *ptr) {
             p += sizeof(struct inotify_event) + p_event->len;
         }
     }
-    inotify_rm_watch( fd, wd );
+    inotify_rm_watch(fd, wd);
 }
 
-char * upload_file(const char *name, int ctx, long begin_time, long end_time) {
-    FILE * fp = NULL;
-    char * json = NULL;
+// upload is not thread safe yet
+char *upload_file_blob(const char *name) {
+    pthread_mutex_lock(&upload_lock);
+    char *file_name = build_file_name(name);
+    char *blob_name = build_blob_name(name);
+    char *p = azc_upload(file_name, blob_name);
+    char *q = strdup(p);
+    printf("upload result %s\n", q);
+    free(file_name);
+    free(blob_name);
+    pthread_mutex_unlock(&upload_lock);
+    free(p);
+    return q;
+}
 
-    printf("upload file %s, ctx %d, begin time %ld, end time %ld\n", name, ctx, begin_time, end_time);
-    char * file_name = build_file_name(name, ctx, end_time);
-    char * cmd = build_command(file_name);
-    //printf("====== upload command %s\n", cmd);
+char *upload_file_curl(const char *name) {
+    FILE *fp = NULL;
+    char *json = NULL;
+
+    char *file_name = build_file_name(name);
+    char *cmd = build_command(file_name);
 
     do {
-        fp = popen(cmd,"r");
-        if ( fp == NULL) {
+        fp = popen(cmd, "r");
+        if (fp == NULL) {
             printf("Unable to open process");
             break;
         }
@@ -213,14 +259,33 @@ char * upload_file(const char *name, int ctx, long begin_time, long end_time) {
     return json;
 }
 
-char * build_file_name(const char *name, int ctx, long time) {
-    char * fname = malloc(100);
-    sprintf(fname, "%s", name);
-    return fname;
+char *build_file_name(const char *name) {
+    return strdup(name);
 }
 
-char * build_command(const char *file_name) {
-    char * cmd = (char *) malloc(strlen(CURL) + MAX_FILE_NAME);
+char *build_blob_name(const char *name) {
+    char fname[300];
+    char *p = strrchr(name, '/');
+    if (p == NULL) {
+        strcpy(fname, name);
+    } else {
+        strcpy(fname, p + 1);
+    }
+    char *q = strrchr(fname, '.');
+    if (q != NULL) {
+        *q = 0;
+    }
+    sprintf(fname + strlen(fname), "-%ld", time(NULL));
+    q = strrchr(name, '.');
+    if (q != NULL) {
+        strcat(fname, q);
+    }
+    printf("blob_name %s\n", fname);
+    return strdup(fname);
+}
+
+char *build_command(const char *file_name) {
+    char *cmd = (char *) malloc(strlen(CURL) + MAX_FILE_NAME);
     sprintf(cmd, CURL, file_name);
     return cmd;
 }

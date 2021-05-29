@@ -7,12 +7,26 @@
 
 _Noreturn void *watchThread(void *ptr);
 
-char *upload_file(const char *p, int ctx, long start_time, long end_time);
-char *build_file_name(const char *p, int ctx, long time);
+int64_t now_ms_mono();
+
+int64_t now_ms_real();
+
+int32_t now_sec_real();
+
+char *upload_file_curl(const char *file_name);
+
+char *upload_file_blob(const char *file_name);
+
+char *build_file_name(const char *file_name);
+
+char *build_blob_name(const char *file_name);
+
 char *build_command(const char *file_name);
 
 void set_trigger(int context, long time);
+
 long get_trigger(int context);
+
 void clear_trigger(int context);
 
 #endif //AZC_WATCH_H

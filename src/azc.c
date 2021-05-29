@@ -299,23 +299,25 @@ type Clip struct {
 	EndTime   int64    `db:"end_time" json:"t"`
 	Width     int16    `db:"width" json:"w"`
 	Height    int16    `db:"height" json:"h"`
-	Duration  int16    `db:"duration" json:"d"`
+	Duration  int16    `db:"duration" json:"d"`     //todo: change to int32
 	Events    []string `db:"events" json:"events"`
 } */
-int azc_send_video_id(int ctx_id, const char * uuid, long begin_time, long end_time) {
+int azc_send_video_info(struct video_info *info) {
     int rc = 0;
-    printf("azc_send_video_id - ctx %d, begin %ld, end %ld, video uid %s\n",
-           ctx_id, begin_time, end_time, uuid);
+    printf("azc_send_video_id - ctx %d, begin time %ld, begin time real: %ld, duration %d, video path %s\n",
+           info->ctx_id, info->begin_time, info->begin_time_real, info->duration, info->path);
 
     JSON_Value *rootv = json_value_init_object();
     JSON_Object *root = json_value_get_object(rootv);
-    json_object_set_number(root, "cid", ctx_id);
-    json_object_set_number(root, "s", begin_time);
-    json_object_set_number(root, "t", end_time);
-    json_object_set_number(root, "d", end_time - begin_time);
-    json_object_set_string(root, "vid", uuid);
-    char * msg = json_serialize_to_string(rootv);
-    //printf("=== Sending video_id to IoTHub\nMessage: %s\n",  msg);
+    json_object_set_number(root, "cid", info->ctx_id);
+    json_object_set_number(root, "w", info->width);
+    json_object_set_number(root, "h", info->height);
+    json_object_set_number(root, "s", info->begin_time);
+    json_object_set_number(root, "t", info->begin_time_real);
+    json_object_set_number(root, "d", info->duration);
+    json_object_set_string(root, "vid", info->path);
+    char *msg = json_serialize_to_string(rootv);
+    printf("=== Sending video_id to IoTHub\nMessage: %s\n", msg);
     message_handle = IoTHubMessage_CreateFromString(msg);
     IoTHubMessage_SetProperty(message_handle, "T", "V");
     IoTHubMessage_SetContentTypeSystemProperty(message_handle, "application/json");
@@ -359,21 +361,21 @@ getDataCallback(IOTHUB_CLIENT_FILE_UPLOAD_RESULT result, unsigned char const **d
 
 // MU_ENUM_TO_STRING(IOTHUB_CLIENT_FILE_UPLOAD_RESULT, result)
 
-int azc_upload(const char *file_name, const char *blob_path) {
+char *azc_upload(const char *file_name, const char *blob_path) {
     if (device_ll_handle == NULL) {
         printf("azc not initialized\n");
-        return 1;
+        return NULL;
     }
     FILE *fp = fopen(file_name, "rb");
     if (fp == NULL) {
         printf("azc_upload - File %s not found\n", file_name);
-        return 2;
+        return NULL;
     }
     upload_buffer = (char *) malloc(upload_buffer_size);
     if (upload_buffer == NULL) {
         fclose(fp);
         printf("malloc %d failed\n", upload_buffer_size);
-        return 3;
+        return NULL;
     }
     printf("Uploading %s ...\n", file_name);
     total_bytes = 0;
@@ -381,7 +383,13 @@ int azc_upload(const char *file_name, const char *blob_path) {
     printf("upload rc %d\n", rc);
     free(upload_buffer);
     fclose(fp);
-    return rc;
+    // C610 is iot device name
+    char *prefix = "https://edgestorage01.blob.core.windows.net/video/C610";
+    char res[300] = "{\"result\":{\"uid\":\"\"}}";
+    if (rc == 0) {
+        snprintf(res, 300, "{\"result\":{\"path\":\"%s/%s\"}}", prefix, blob_path);
+    }
+    return strdup(res);
 }
 
 // Set Message properties
