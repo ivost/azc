@@ -11,10 +11,11 @@
 int parse_name(const char *name, int * p_ctx, int * p_duration, int * w, int *h);
 void test();
 
+int upload(void);
+
 int main(int argc, char *argv[]) {
 /*
     test();
-*/
     pthread_t thread1;
     pthread_t thread2;
     printf("azc v.1.5.26.0 enter\n");
@@ -22,6 +23,9 @@ int main(int argc, char *argv[]) {
     pthread_create(&thread2, NULL, watchThread, NULL);
     pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);
+*/
+    upload();
+
     return 0;
 }
 

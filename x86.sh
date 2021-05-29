@@ -21,7 +21,7 @@ gcc azc.o certs.o -shared -o libazc.so \
 
 #   -l hogweed -l gnutls \
 
-gcc src/main.c src/watch.c src/msgq.c src/Uploader.cpp \
+gcc src/main.c src/watch.c src/msgq.c src/azblob.c src/Uploader.cpp \
  -o azcX86 \
  -I include -I src -I deps/umock_c/inc  \
  -L . \
