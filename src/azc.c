@@ -26,6 +26,7 @@ static void connection_status_callback(IOTHUB_CLIENT_CONNECTION_STATUS result,
 static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void *userContextCallback);
 
 static const char *connectionString = "HostName=ivohub2.azure-devices.net;DeviceId=C610;SharedAccessKey=KkuvGKU0am1wL6+fgI9Xp/JUZr5ataYhQcfQ2Csd9XA=";
+//static const char *connectionString = "HostName=ivohub2.azure-devices.net;DeviceId=C610-2;SharedAccessKey=6/4didae/YnSXbkuZOCRr+kNikypGV6Jd7B6hm8cNQU=";
 
 static size_t g_message_count_send_confirmations = 0;
 
@@ -144,16 +145,6 @@ device_method_callback(const char *method_name, const unsigned char *payload, si
     if (strcmp(method_name, SetTelemetryIntervalMethod) == 0) {
         if (payload) {
             newInterval = (int) strtol((char *) payload, &end, 10);
-//            // Interval must be greater than zero.
-//            if (newInterval > 0) {
-//                // expect sec and convert to ms
-//                g_interval = 1000 * (int) strtol((char *) payload, &end, 10);
-//                status = 200;
-//                RESPONSE_STRING = "{ \"Response\": \"Telemetry reporting interval updated.\" }";
-//            } else {
-//                status = 500;
-//                RESPONSE_STRING = "{ \"Response\": \"Invalid telemetry reporting interval.\" }";
-//            }
         }
     }
 

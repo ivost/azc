@@ -8,7 +8,7 @@
 #include "msgq.h"
 #include "watch.h"
 
-int parse_name(const char *name, int * p_ctx, int * p_duration);
+int parse_name(const char *name, int * p_ctx, int * p_duration, int * w, int *h);
 void test();
 
 int main(int argc, char *argv[]) {
@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
 */
     pthread_t thread1;
     pthread_t thread2;
-    printf("azc v.1.5.22.3 enter\n");
+    printf("azc v.1.5.26.0 enter\n");
     pthread_create(&thread1, NULL, msgRecvThread, NULL);
     pthread_create(&thread2, NULL, watchThread, NULL);
     pthread_join(thread1, NULL);
@@ -26,13 +26,10 @@ int main(int argc, char *argv[]) {
 }
 
 void test() {
-    const char name[] = "A99-123-004.mp4";
-    int ctx;
-    int dur;
-    parse_name(name, &ctx, &dur);
-    printf("name %s, ctx %d, dur %d\n", name, ctx, dur);
-
-
+    const char name[] = "001_060-1920x1056-000.mp4";
+    int ctx, dur, width, height;
+    parse_name(name, &ctx, &dur, &width, &height);
+    printf("name %s, ctx %d, dur %d, width %d, height %d\n", name, ctx, dur, width, height);
 //    JSON_Object * root_object;
 //    JSON_Value  * root_value;
 //    const char * json = "{\"result\": {\"uid\": \"f6cfa8416d2e4132b8d8d85914df51c6\"}}";

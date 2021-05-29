@@ -60,43 +60,67 @@ int is_digit(char c) {
     return 0;
 }
 
-// file name is A01-DDD-NNN.mp4
-// e.g. A01-030-004.mp4
-// where 01 is context, DDD - file duration in sec, NNN - seq.no
+char * get_number(char *p, int *pn) {
+    char *q;
+    char tmp[10];
+    if (p == NULL || pn == NULL) {
+        return NULL;
+    }
+    *pn = 0;
+    // q scans for the first digit
+    for (q = p; *q != 0 && !is_digit(*q); q++);
+    if (*q == 0) {
+        // not found
+        return NULL;
+    }
+    p = q;
+    // scan all digits
+    for (q = p; *q != 0 && is_digit(*q); q++);
+    int len = q-p;
+    if (len > 9) {
+        return NULL;
+    }
+    strncpy(tmp, p, len);
+    tmp[len] = 0;
+    sscanf(tmp, "%d", pn);
+    // q points to 1st non-digit or 0
+    return q;
+}
+// file name is CCC_DDD-WWWxHHH-NNN.mp4
+// e.g. 001_060-1920x1056-000.mp4
+// where
+// 001 is the context/camera idx,
+// DDD - file duration in sec,
+// WWW - width in pixels
+// HHH - height in pixels
+// NNN - sequential number 000-MMM
 // return 0 on success, 1 on error
-int parse_name(const char *name, int * p_ctx, int * p_duration) {
-    *p_ctx = 0;
-    *p_duration = 0;
-    char tmp[MAX_FILE_NAME+1];
-    char *p, *q;
-    for (p = (char *) name; *p != 0 && !is_digit(*p); p++);
-    if (*p == 0) {
+int parse_name(const char *name, int * p_ctx, int * p_duration, int *p_width, int *p_height) {
+
+    char *p = (char *) name;
+    p = get_number(p, p_ctx);
+    if (p == NULL) {
         return 1;
     }
-    // p -> 1st digit
-    for (q = p+1; *q != 0 && is_digit(*q); q++);
-    // q -> after last digit
-    // A01-030-004.mp4
-    //  --q
-    int len = q-p;
-    strncpy(tmp, p, len);
-    tmp[len] = 0;
-    sscanf(tmp, "%d", p_ctx);
-    // same for duration
-    // A01-030-004.mp4
-    //     ---q
-    p = q+1;
-    for (q = p; *q != 0 && is_digit(*q); q++);
-    len = q-p;
-    strncpy(tmp, p, len);
-    tmp[len] = 0;
-    sscanf(tmp, "%d", p_duration);
+    p = get_number(p, p_duration);
+    if (p == NULL) {
+        return 2;
+    }
+    p = get_number(p, p_width);
+    if (p == NULL) {
+        return 3;
+    }
+    p = get_number(p, p_height);
+    if (p == NULL) {
+        return 4;
+    }
     return 0;
 }
 
 void onFileChange(struct inotify_event *p_event) {
     int ctx;
     int duration;
+    int width, height;
     long begin_time;
     // assume end_time = current time = closing time
     long end_time = time(NULL);
@@ -106,7 +130,7 @@ void onFileChange(struct inotify_event *p_event) {
     }
     const char *name = (const char *) p_event->name;
     // use file naming to deduct context and duration
-    parse_name(name, &ctx, &duration);
+    parse_name(name, &ctx, &duration, &width, &height);
     // ignore if no triggers
     long t = get_trigger(ctx);
     if (t == 0) {
