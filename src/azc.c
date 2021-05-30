@@ -316,9 +316,9 @@ int azc_send_video_info(struct video_info *info) {
     json_object_set_number(root, "s", info->begin_time);
     json_object_set_number(root, "t", info->begin_time_real);
     json_object_set_number(root, "d", info->duration);
-    json_object_set_string(root, "vid", info->path);
+    json_object_set_string(root, "path", info->path);
     char *msg = json_serialize_to_string(rootv);
-    printf("=== Sending video_id to IoTHub\nMessage: %s\n", msg);
+    printf("=== Sending video info to IoTHub\nMessage: %s\n", msg);
     message_handle = IoTHubMessage_CreateFromString(msg);
     IoTHubMessage_SetProperty(message_handle, "T", "V");
     IoTHubMessage_SetContentTypeSystemProperty(message_handle, "application/json");

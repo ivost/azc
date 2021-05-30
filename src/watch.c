@@ -140,10 +140,12 @@ void onFileChange(struct inotify_event *p_event) {
     int ctx;
     int duration;
     int width, height;
-    long begin_time;
+    long begin_time_mono;
+    long begin_time_real;
+
     // assume end_time = current time = closing time
-    long end_time = now_ms_mono();
-    long end_time2 = now_ms_real();
+    long end_time_mono = now_ms_mono();
+    long end_time_real = now_ms_real();
 
     if ((p_event->mask & IN_CLOSE_WRITE) == 0) {
         return;
@@ -160,8 +162,19 @@ void onFileChange(struct inotify_event *p_event) {
     }
     clear_trigger(ctx);
     duration *= 1000;   // in ms
-    begin_time = end_time - duration;
-    printf("name %s, ctx %d, trigger %ld, begin %ld, end %ld\n", name, ctx, t, begin_time, end_time);
+    begin_time_mono = end_time_mono - duration;
+    begin_time_real = end_time_real - duration;
+    printf("name %s, ctx %d, trigger %ld, begin %ld, end %ld\n", name, ctx, t, begin_time_mono, end_time_mono);
+    // name 001_030-1920x1056-000.mp4, ctx 1, trigger 439307315, begin 439308497, end 439338497
+    // adjust start time and duration if first trigger is before start time
+    if (t <= begin_time_mono) {
+        long delta = begin_time_mono - t + 200;
+        printf("time adjust %ld\n", delta);
+        begin_time_mono -= delta;
+        begin_time_real -= delta;
+        duration = (int) (end_time_mono - begin_time_mono);
+        printf("ADJUSTED begin %ld, end %ld, duration %d\n", begin_time_mono, end_time_mono, duration);
+    }
     char *json = upload_file_blob(name);
     JSON_Object *root_object;
     JSON_Value *root_value;
@@ -174,15 +187,14 @@ void onFileChange(struct inotify_event *p_event) {
     free(json);
     root_object = json_value_get_object(root_value);
     const char *vid = json_object_dotget_string(root_object, "result.path");
-
+    // fill video info
     struct video_info v;
-
-    // send video path
     if (vid != NULL && strlen(vid) > 0) {
         v.height = height;
         v.width = width;
         v.ctx_id = ctx;
-        v.begin_time = begin_time;
+        v.begin_time = begin_time_mono;
+        v.begin_time_real = begin_time_real;
         v.duration = duration;
         strcpy(v.path, vid);
         azc_send_video_info(&v);
@@ -219,7 +231,7 @@ char *upload_file_blob(const char *name) {
     pthread_mutex_lock(&upload_lock);
     char *file_name = build_file_name(name);
     char *blob_name = build_blob_name(name);
-    printf("file_name %s\n", file_name);
+    //printf("file_name %s\n", file_name);
     char *p = azc_upload(file_name, blob_name);
     char *q = strdup(p);
     printf("upload result %s\n", q);

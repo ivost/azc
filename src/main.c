@@ -18,7 +18,7 @@ int testing = 0;
 
 int main(int argc, char *argv[]) {
 
-    printf("azc v.1.5.29.4, epoch %d sec\n", now_sec_real());
+    printf("azc v.1.5.29.5, epoch %d sec\n", now_sec_real());
     printf("real time %ld ms, monotonic time %ld ms\n", now_ms_real(), now_ms_mono());
 
     if (testing) {
